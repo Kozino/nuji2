@@ -1,11 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import {
-  ArrowRight, Check, ChevronDown, CircleHelp, Headphones, LockKeyhole, Mail, Menu, Mic,
-  Pause, Play, RotateCcw, SkipForward, Trophy, Volume2, X, User, Clock, Award,
-  Facebook, Instagram, Twitter, Send, Phone, Music, MessageCircle,
-  MapPin, Flag, BarChart3, Users, Layers, Globe, Zap
-} from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, CircleHelp, Headphones, LockKeyhole, Mail, Menu, Mic, Pause, Play, RotateCcw, SkipForward, Trophy, Volume2, X, User, Clock, Award, Send, Phone, Music, MessageCircle, MapPin, Flag, BarChart3, Users, Layers, Globe, Zap } from "lucide-react";
 import './styles.css';
 
 const languages = [
