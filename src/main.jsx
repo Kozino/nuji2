@@ -492,15 +492,140 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
   const update = (key, value) => setProfile(p => ({...p, [key]: value}));
   const updateState = (value) => setProfile(p => ({...p, state: value, lga: ''}));
   const toggleLanguage = (name) => setProfile(p => ({...p, languages:p.languages.includes(name) ? p.languages.filter(x=>x!==name) : [...p.languages, name]}));
-  if(step === 'choose') return <section className="join-page"><div className="join-container choice-screen"><button className="back-link" onClick={()=>setStep('phone')}>← Back</button><div className="join-heading"><div className="eyebrow">Start contributing</div><h1>How do you want<br/>to <em>contribute?</em></h1><p>Choose how you'd like to get started today.</p></div><div className="entry-choice-grid"><button className="entry-choice quick" onClick={()=>navigate('contribute')}><div className="choice-top"><span className="choice-icon"><Mic/></span><span className="choice-badge">Fastest</span></div><h2>Quick Contribute</h2><p>Just 3 quick questions — no account needed. Start contributing in under 30 seconds.</p><span className="choice-action">Start now <ArrowRight size={17}/></span></button><button className="entry-choice profile" onClick={()=>setStep('profile')}><div className="choice-top"><span className="choice-icon"><Trophy/></span><span className="choice-badge">Track Points</span></div><h2>Create Profile</h2><p>Save your profile, earn points, and climb the leaderboard. Takes 2 minutes.</p><span className="choice-action">Set up profile <ArrowRight size={17}/></span></button></div></div></section>;
-  if(step === 'profile') return <section className="join-page"><div className="profile-container"><button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button><div className="form-heading"><div className="eyebrow">Profile setup · 1 of 1</div><h1>Tell us about <em>yourself.</em></h1><p>This helps tag your dialect correctly — making your data more valuable.</p></div><form className="profile-form" onSubmit={e=>{e.preventDefault();navigate('profile')}}><Field label="Nickname (optional)"><input value={profile.nickname} onChange={e=>update('nickname',e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/></Field><div className="form-pair"><Field label="State of Origin *"><select value={profile.state} onChange={e=>updateState(e.target.value)} required><option value="">Select your state</option>{nigeriaStateNames.map(s=><option key={s}>{s}</option>)}</select></Field><Field label="LGA *"><select value={profile.lga} onChange={e=>update('lga',e.target.value)} required disabled={!profile.state}><option value="">{profile.state?'Select your LGA':'Select state first'}</option>{(nigeriaStates[profile.state]||[]).map(l=><option key={l}>{l}</option>)}</select></Field></div><div className="form-pair"><Field label="Age Range *"><select value={profile.age} onChange={e=>update('age',e.target.value)} required><option value="">Select age range</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45+</option></select></Field><Field label="Gender *"><div className="gender-options">{['Male','Female','Prefer not to say'].map(g=><label key={g}><input type="radio" name="gender" value={g} checked={profile.gender===g} onChange={e=>update('gender',e.target.value)} required/><span>{g}</span></label>)}</div></Field></div><p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p><Field label="Languages spoken at home *"><div className="checkbox-grid">{languages.map(l=><label key={l.name}><input type="checkbox" checked={profile.languages.includes(l.name)} onChange={()=>toggleLanguage(l.name)}/><span>{l.name}</span></label>)}</div></Field><Field label="Contributing today in *"><select value={profile.contribution} onChange={e=>{update('contribution',e.target.value);setLanguage(languages.find(l=>l.name===e.target.value))} } required>{languages.map(l=><option key={l.name}>{l.name}</option>)}</select></Field>
-  if(step === 'profile') return <section className="join-page"><div className="profile-container"><button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button><div className="form-heading"><div className="eyebrow">Profile setup · 1 of 1</div><h1>Tell us about <em>yourself.</em></h1><p>This helps tag your dialect correctly — making your data more valuable.</p></div><form className="profile-form" onSubmit={e=>{e.preventDefault();setHasProfile(true);navigate('profile')}}>   
-    <Field label="Phone number">
-        <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="02200000" inputMode="tel"/>
-        <small>Used to recognise you on future visits. No OTP needed.</small>
-      </Field>
-      <button className="btn btn-primary profile-submit" type="submit">Create Profile & Start <ArrowRight size={18}/></button><p className="required-note">Fields marked * help us tag your dialect correctly.</p></form></div></section>;
-  return <section className="join-page"><div className="join-container phone-layout"><div className="phone-card"><div className="eyebrow">Contribute to Nuji</div><h1>Welcome back <span>👋</span></h1><p>Enter your phone number to continue. New here? We'll set you up in seconds.</p><form onSubmit={e=>{e.preventDefault();setStep('choose')}}><Field label="Phone Number"><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="080 0000 0000" inputMode="tel" required/></Field><button className="btn btn-primary phone-submit" type="submit">Continue <ArrowRight size={18}/></button></form><div className="phone-key"><span>🔑</span><div><b>Your phone number is your key</b><small>No password, no long process.</small></div></div></div><div className="trust-panel"><div className="trust-mark"><span className="trust-logo-mark">N</span></div><div className="trust-list"><Trust icon="🔒" title="No password" text="Just your phone number"/><Trust icon="⚡" title="Instant access" text="Returning users skip setup"/><Trust icon="🏆" title="Track points" text="See your rank & progress"/><Trust icon="🇳🇬" title="Your data" text="Helping 200M+ Nigerians"/></div></div></div></section>;
+  
+  if(step === 'choose') return (
+    <section className="join-page">
+      <div className="join-container choice-screen">
+        <button className="back-link" onClick={()=>setStep('phone')}>← Back</button>
+        <div className="join-heading">
+          <div className="eyebrow">Start contributing</div>
+          <h1>How do you want<br/>to <em>contribute?</em></h1>
+          <p>Choose how you'd like to get started today.</p>
+        </div>
+        <div className="entry-choice-grid">
+          <button className="entry-choice quick" onClick={()=>navigate('contribute')}>
+            <div className="choice-top"><span className="choice-icon"><Mic/></span><span className="choice-badge">Fastest</span></div>
+            <h2>Quick Contribute</h2>
+            <p>Just 3 quick questions — no account needed. Start contributing in under 30 seconds.</p>
+            <span className="choice-action">Start now <ArrowRight size={17}/></span>
+          </button>
+          <button className="entry-choice profile" onClick={()=>setStep('profile')}>
+            <div className="choice-top"><span className="choice-icon"><Trophy/></span><span className="choice-badge">Track Points</span></div>
+            <h2>Create Profile</h2>
+            <p>Save your profile, earn points, and climb the leaderboard. Takes 2 minutes.</p>
+            <span className="choice-action">Set up profile <ArrowRight size={17}/></span>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+  
+  if(step === 'profile') return (
+    <section className="join-page">
+      <div className="profile-container">
+        <button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button>
+        <div className="form-heading">
+          <div className="eyebrow">Profile setup · 1 of 1</div>
+          <h1>Tell us about <em>yourself.</em></h1>
+          <p>This helps tag your dialect correctly — making your data more valuable.</p>
+        </div>
+        <form className="profile-form" onSubmit={e=>{e.preventDefault();setHasProfile(true);navigate('profile')}}>
+          <Field label="Nickname (optional)">
+            <input value={profile.nickname} onChange={e=>update('nickname',e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/>
+          </Field>
+          <div className="form-pair">
+            <Field label="State of Origin *">
+              <select value={profile.state} onChange={e=>updateState(e.target.value)} required>
+                <option value="">Select your state</option>
+                {nigeriaStateNames.map(s=><option key={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="LGA *">
+              <select value={profile.lga} onChange={e=>update('lga',e.target.value)} required disabled={!profile.state}>
+                <option value="">{profile.state?'Select your LGA':'Select state first'}</option>
+                {(nigeriaStates[profile.state]||[]).map(l=><option key={l}>{l}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="form-pair">
+            <Field label="Age Range *">
+              <select value={profile.age} onChange={e=>update('age',e.target.value)} required>
+                <option value="">Select age range</option>
+                <option>18–24</option>
+                <option>25–34</option>
+                <option>35–44</option>
+                <option>45+</option>
+              </select>
+            </Field>
+            <Field label="Gender *">
+              <div className="gender-options">
+                {['Male','Female','Prefer not to say'].map(g=>
+                  <label key={g}>
+                    <input type="radio" name="gender" value={g} checked={profile.gender===g} onChange={e=>update('gender',e.target.value)} required/>
+                    <span>{g}</span>
+                  </label>)}
+              </div>
+            </Field>
+          </div>
+          <p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p>
+          <Field label="Languages spoken at home *">
+            <div className="checkbox-grid">
+              {languages.map(l=>
+                <label key={l.name}>
+                  <input type="checkbox" checked={profile.languages.includes(l.name)} onChange={()=>toggleLanguage(l.name)}/>
+                  <span>{l.name}</span>
+                </label>)}
+            </div>
+          </Field>
+          <Field label="Contributing today in *">
+            <select value={profile.contribution} onChange={e=>{update('contribution',e.target.value);setLanguage(languages.find(l=>l.name===e.target.value))}} required>
+              {languages.map(l=><option key={l.name}>{l.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Phone number">
+            <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="02200000" inputMode="tel"/>
+            <small>Used to recognise you on future visits. No OTP needed.</small>
+          </Field>
+          <button className="btn btn-primary profile-submit" type="submit">Create Profile & Start <ArrowRight size={18}/></button>
+          <p className="required-note">Fields marked * help us tag your dialect correctly.</p>
+        </form>
+      </div>
+    </section>
+  );
+  
+  return (
+    <section className="join-page">
+      <div className="join-container phone-layout">
+        <div className="phone-card">
+          <div className="eyebrow">Contribute to Nuji</div>
+          <h1>Welcome back <span>👋</span></h1>
+          <p>Enter your phone number to continue. New here? We'll set you up in seconds.</p>
+          <form onSubmit={e=>{e.preventDefault();setStep('choose')}}>
+            <Field label="Phone Number">
+              <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="080 0000 0000" inputMode="tel" required/>
+            </Field>
+            <button className="btn btn-primary phone-submit" type="submit">Continue <ArrowRight size={18}/></button>
+          </form>
+          <div className="phone-key">
+            <span>🔑</span>
+            <div>
+              <b>Your phone number is your key</b>
+              <small>No password, no long process.</small>
+            </div>
+          </div>
+        </div>
+        <div className="trust-panel">
+          <div className="trust-mark"><span className="trust-logo-mark">N</span></div>
+          <div className="trust-list">
+            <Trust icon="🔒" title="No password" text="Just your phone number"/>
+            <Trust icon="⚡" title="Instant access" text="Returning users skip setup"/>
+            <Trust icon="🏆" title="Track points" text="See your rank & progress"/>
+            <Trust icon="🇳🇬" title="Your data" text="Helping 200M+ Nigerians"/>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function Field({label, children}) { return <label className="form-field"><span>{label}</span>{children}</label> }
