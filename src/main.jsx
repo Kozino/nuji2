@@ -35,6 +35,13 @@ const stateData = [
 const zones = ['All States', 'South East', 'South West', 'South South', 'North Central', 'North East', 'North West'];
 
 // Profile data — mirrors the contributor stats shown in the mobile app screenshots
+
+const pointsBreakdown = [
+  { label: 'Text only', count: 1, rate: 3 },
+  { label: 'Voice only', count: 0, rate: 2 },
+  { label: 'Text + Voice', count: 0, rate: 5 },
+];
+const referralStats = { url: 'https://nuji-next.vercel.app?ref=', joined: 0, points: 0 };
 const profileStats = { points: 153, rank: 1, submissions: 43, reviews: 9, level: 'Expert Contributor', levelProgress: 73, levelTarget: 100 };
 const overviewStats = [
   { icon: 'total', number: 43, label: 'Total' },
@@ -140,6 +147,7 @@ function App() {
   const [page, setPage] = useState(() => routeMap[window.location.pathname] || 'home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState(languages[0]);
+  const [hasProfile, setHasProfile] = useState(false); // NEW — becomes true once a profile is created
   const navigate = (next) => { const path = pathMap[next] || '/'; window.history.pushState({}, '', path); setPage(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   useEffect(() => { const onPop = () => setPage(routeMap[window.location.pathname] || 'home'); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop); }, []);
@@ -148,11 +156,11 @@ function App() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">Skip to main content</a>
-      <Nav page={page} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} />
+      <Nav page={page} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} hasProfile={hasProfile} />
       <main id="main">
         {page === 'home' && <Home navigate={navigate} language={language} setLanguage={setLanguage} />}
         {page === 'about' && <About navigate={navigate} />}
-        {page === 'join' && <Join navigate={navigate} language={language} setLanguage={setLanguage} />}
+        {page === 'join' && <Join navigate={navigate} language={language} setLanguage={setLanguage} setHasProfile={setHasProfile} />}
         {page === 'contribute' && <Contribute language={language} setLanguage={setLanguage} />}
         {page === 'listen' && <Listen language={language} setLanguage={setLanguage} />}
         {page === 'leaderboard' && <Leaderboard />}
@@ -165,7 +173,7 @@ function App() {
   );
 }
 
-function Nav({ page, menuOpen, setMenuOpen, navigate }) {
+function Nav({ page, menuOpen, setMenuOpen, navigate, hasProfile }) {
   const links = [['home', 'Home'], ['about', 'About'], ['join', 'Contribute'], ['listen', 'Listen'], ['leaderboard', 'Leaderboard'], ['state', 'State'], ['admin', 'Admin']];
   return <>
     <header className="nav-wrap">
@@ -176,9 +184,9 @@ function Nav({ page, menuOpen, setMenuOpen, navigate }) {
         </div>
         <div className="nav-actions">
           <button className="language-nav"><span className="dot"/> Igbo <ChevronDown size={16}/></button>
-          <button className="points-pill" onClick={() => navigate('profile')} aria-label="View points"><Award size={14}/> 153</button>
+          {hasProfile && <button className="points-pill" onClick={() => navigate('profile')} aria-label="View points"><Award size={14}/> 153</button>}
           <button className="btn btn-primary nav-cta" onClick={() => navigate('join')}>Contribute <ArrowRight size={16}/></button>
-          <button className={page === 'profile' ? 'profile-avatar active' : 'profile-avatar'} onClick={() => navigate('profile')} aria-label="My profile"><User size={17}/></button>
+          {hasProfile && <button className={page === 'profile' ? 'profile-avatar active' : 'profile-avatar'} onClick={() => navigate('profile')} aria-label="My profile"><User size={17}/></button>}
           <button className="menu-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={23}/></button>
         </div>
       </nav>
@@ -186,7 +194,7 @@ function Nav({ page, menuOpen, setMenuOpen, navigate }) {
     <div className={menuOpen ? 'mobile-menu open' : 'mobile-menu'} aria-hidden={!menuOpen}>
       <div className="mobile-menu-top"><button className="brand" onClick={() => navigate('home')}><img className="brand-logo" src="/assets/nuji-logo.png" alt=""/><span>nuji</span></button><button className="icon-btn" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X/></button></div>
       <div className="mobile-links">{links.map(([key,label], i) => <button key={key} onClick={() => navigate(key)}><span>0{i + 1}</span>{label}<ArrowRight size={18}/></button>)}
-        <button onClick={() => navigate('profile')}><span>0{links.length + 1}</span>My Profile<ArrowRight size={18}/></button>
+        {hasProfile && <button onClick={() => navigate('profile')}><span>0{links.length + 1}</span>My Profile<ArrowRight size={18}/></button>}
       </div>
       <button className="btn btn-primary mobile-cta" onClick={() => navigate('join')}>Start contributing <ArrowRight size={17}/></button>
     </div>
@@ -404,11 +412,38 @@ function Profile({ navigate }) {
         <button className={tab==='badges'?'profile-tab active':'profile-tab'} onClick={()=>setTab('badges')}>Badges ({badgesEarned})</button>
       </div>
 
-      {tab === 'overview' && <div className="profile-panel">
-        <div className="overview-grid">
-          {overviewStats.map(s => <div className={`overview-card ${overviewToneMap[s.icon]}`} key={s.label}><span className="overview-icon">{overviewIconMap[s.icon]}</span><strong>{s.number}</strong><span>{s.label}</span></div>)}
-        </div>
-      </div>}
+    {tab === 'overview' && <div className="profile-panel">
+  <div className="overview-grid">
+    {overviewStats.map(s => <div className={`overview-card ${overviewToneMap[s.icon]}`} key={s.label}><span className="overview-icon">{overviewIconMap[s.icon]}</span><strong>{s.number}</strong><span>{s.label}</span></div>)}
+  </div>
+
+  <div className="points-breakdown-card">
+    <h3>Points Breakdown</h3>
+    <div className="breakdown-rows">
+      {pointsBreakdown.map(row => <div className="breakdown-row" key={row.label}>
+        <span className="breakdown-label">{row.label}</span>
+        <span className="breakdown-calc">{row.count} × {row.rate}pts</span>
+        <span className="breakdown-pts">{row.count * row.rate} pts</span>
+      </div>)}
+    </div>
+    <div className="breakdown-total-row"><span>Total</span><strong>{pointsBreakdown.reduce((s,r)=>s+r.count*r.rate,0)} pts</strong></div>
+  </div>
+
+  <div className="invite-card">
+    <h3>🤝 Invite Friends</h3>
+    <p>Earn <strong>+10 points</strong> for every person who joins!</p>
+    <div className="invite-link-row">
+      <span className="invite-link">{referralStats.url}</span>
+      <button className="invite-copy-btn" onClick={() => navigator.clipboard?.writeText(referralStats.url)}>Copy</button>
+    </div>
+    <div className="invite-stats-row">
+      <span className="invite-stat-pill"><Users size={14}/> {referralStats.joined} joined</span>
+      <span className="invite-stat-pill gold"><Award size={14}/> +{referralStats.points} pts</span>
+    </div>
+    <button className="btn invite-whatsapp"><MessageCircle size={17}/> Share on WhatsApp</button>
+    <button className="btn btn-primary invite-continue" onClick={() => navigate('contribute')}>Continue Contributing <ArrowRight size={17}/></button>
+  </div>
+</div>}
 
       {tab === 'activity' && <div className="profile-panel">
         <div className="activity-card">
@@ -450,7 +485,7 @@ function Admin() {
   return <section className="admin-page"><div className="admin-shell"><div className="admin-aside"><img src="/assets/nuji-logo.png" alt="Nuji"/><div><div className="eyebrow">Nuji operations</div><h1>Keep every voice<br/><em>moving forward.</em></h1><p>Secure access for Nuji dataset administrators and community operations teams.</p></div><span>© 2026 Nuji · Internal platform</span></div><div className="admin-login"><div className="admin-mobile-logo"><img src="/assets/nuji-logo.png" alt="Nuji"/></div><div className="admin-copy"><div className="eyebrow ink">Admin portal</div><h2>Welcome back.</h2><p>Sign in to manage contributions and community quality.</p></div><form onSubmit={e=>e.preventDefault()}><Field label="Work email"><span className="input-icon"><Mail size={18}/><input type="email" placeholder="you@nuji.ng" required/></span></Field><Field label="Password"><span className="input-icon"><LockKeyhole size={18}/><input type={showPassword?'text':'password'} placeholder="Enter your password" required/><button type="button" onClick={()=>setShowPassword(!showPassword)}>{showPassword?'Hide':'Show'}</button></span></Field><div className="admin-options"><label><input type="checkbox"/> Remember me</label><button type="button">Forgot password?</button></div><button type="submit" className="btn btn-primary admin-submit">Sign in to admin <ArrowRight size={17}/></button></form><div className="admin-security"><LockKeyhole size={15}/><span>Protected access · Authorized Nuji team members only</span></div></div></div></section>;
 }
 
-function Join({ navigate, language, setLanguage }) {
+function Join({ navigate, language, setLanguage, setHasProfile }) {
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [profile, setProfile] = useState({ nickname:'', state:'', lga:'', age:'', gender:'', languages:[], contribution:language.name });
@@ -459,7 +494,8 @@ function Join({ navigate, language, setLanguage }) {
   const toggleLanguage = (name) => setProfile(p => ({...p, languages:p.languages.includes(name) ? p.languages.filter(x=>x!==name) : [...p.languages, name]}));
   if(step === 'choose') return <section className="join-page"><div className="join-container choice-screen"><button className="back-link" onClick={()=>setStep('phone')}>← Back</button><div className="join-heading"><div className="eyebrow">Start contributing</div><h1>How do you want<br/>to <em>contribute?</em></h1><p>Choose how you'd like to get started today.</p></div><div className="entry-choice-grid"><button className="entry-choice quick" onClick={()=>navigate('contribute')}><div className="choice-top"><span className="choice-icon"><Mic/></span><span className="choice-badge">Fastest</span></div><h2>Quick Contribute</h2><p>Just 3 quick questions — no account needed. Start contributing in under 30 seconds.</p><span className="choice-action">Start now <ArrowRight size={17}/></span></button><button className="entry-choice profile" onClick={()=>setStep('profile')}><div className="choice-top"><span className="choice-icon"><Trophy/></span><span className="choice-badge">Track Points</span></div><h2>Create Profile</h2><p>Save your profile, earn points, and climb the leaderboard. Takes 2 minutes.</p><span className="choice-action">Set up profile <ArrowRight size={17}/></span></button></div></div></section>;
   if(step === 'profile') return <section className="join-page"><div className="profile-container"><button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button><div className="form-heading"><div className="eyebrow">Profile setup · 1 of 1</div><h1>Tell us about <em>yourself.</em></h1><p>This helps tag your dialect correctly — making your data more valuable.</p></div><form className="profile-form" onSubmit={e=>{e.preventDefault();navigate('profile')}}><Field label="Nickname (optional)"><input value={profile.nickname} onChange={e=>update('nickname',e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/></Field><div className="form-pair"><Field label="State of Origin *"><select value={profile.state} onChange={e=>updateState(e.target.value)} required><option value="">Select your state</option>{nigeriaStateNames.map(s=><option key={s}>{s}</option>)}</select></Field><Field label="LGA *"><select value={profile.lga} onChange={e=>update('lga',e.target.value)} required disabled={!profile.state}><option value="">{profile.state?'Select your LGA':'Select state first'}</option>{(nigeriaStates[profile.state]||[]).map(l=><option key={l}>{l}</option>)}</select></Field></div><div className="form-pair"><Field label="Age Range *"><select value={profile.age} onChange={e=>update('age',e.target.value)} required><option value="">Select age range</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45+</option></select></Field><Field label="Gender *"><div className="gender-options">{['Male','Female','Prefer not to say'].map(g=><label key={g}><input type="radio" name="gender" value={g} checked={profile.gender===g} onChange={e=>update('gender',e.target.value)} required/><span>{g}</span></label>)}</div></Field></div><p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p><Field label="Languages spoken at home *"><div className="checkbox-grid">{languages.map(l=><label key={l.name}><input type="checkbox" checked={profile.languages.includes(l.name)} onChange={()=>toggleLanguage(l.name)}/><span>{l.name}</span></label>)}</div></Field><Field label="Contributing today in *"><select value={profile.contribution} onChange={e=>{update('contribution',e.target.value);setLanguage(languages.find(l=>l.name===e.target.value))} } required>{languages.map(l=><option key={l.name}>{l.name}</option>)}</select></Field>
-      <Field label="Phone number">
+  if(step === 'profile') return <section className="join-page"><div className="profile-container"><button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button><div className="form-heading"><div className="eyebrow">Profile setup · 1 of 1</div><h1>Tell us about <em>yourself.</em></h1><p>This helps tag your dialect correctly — making your data more valuable.</p></div><form className="profile-form" onSubmit={e=>{e.preventDefault();setHasProfile(true);navigate('profile')}}>   
+    <Field label="Phone number">
         <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="02200000" inputMode="tel"/>
         <small>Used to recognise you on future visits. No OTP needed.</small>
       </Field>
