@@ -181,7 +181,6 @@ function App() {
         {page === 'contribute' && <Contribute language={language} setLanguage={setLanguage} />}
         {page === 'listen' && <Listen language={language} setLanguage={setLanguage} />}
         {page === 'leaderboard' && <Leaderboard />}
-        {page === 'admin' && <Admin />}
         {page === 'state' && <StatePage navigate={navigate} />}
         {page === 'profile' && <Profile navigate={navigate} />}
       </main>
@@ -191,7 +190,7 @@ function App() {
 }
 
 function Nav({ page, menuOpen, setMenuOpen, navigate, hasProfile }) {
-  const links = [['home', 'Home'], ['about', 'About'], ['join', 'Contribute'], ['listen', 'Listen'], ['leaderboard', 'Leaderboard'], ['state', 'State'], ['admin', 'Admin']];
+  const links = [['home', 'Home'], ['about', 'About'], ['join', 'Contribute'], ['listen', 'Listen'], ['leaderboard', 'Leaderboard'], ['state', 'State']];
   return <>
     <header className="nav-wrap">
       <nav className="nav container" aria-label="Main navigation">
