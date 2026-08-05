@@ -34,9 +34,31 @@ const stateData = [
 
 const zones = ['All States', 'South East', 'South West', 'South South', 'North Central', 'North East', 'North West'];
 
+// Profile data — mirrors the contributor stats shown in the mobile app screenshots
+const profileStats = { points: 153, rank: 1, submissions: 43, reviews: 9, level: 'Expert Contributor', levelProgress: 73, levelTarget: 100 };
+const overviewStats = [
+  { icon: 'total', number: 43, label: 'Total' },
+  { icon: 'text', number: 25, label: 'Text Only' },
+  { icon: 'voice', number: 4, label: 'Voice Only' },
+  { icon: 'both', number: 14, label: 'Text + Voice' },
+  { icon: 'mix', number: 3, label: 'Code-switched' },
+  { icon: 'reviews', number: 9, label: 'Reviews Done' },
+];
+const activityMonths = ['A','M','J','J','A'];
+const activityWeeks = [0,1,0,0,0, 0,2,0,1,0, 0,1,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,1,0];
+const badgeList = [
+  { icon: '🎙️', name: 'First Voice', earned: true },
+  { icon: '🔥', name: 'On Fire', earned: true },
+  { icon: '👑', name: 'Pidgin King', earned: true },
+  { icon: '🔀', name: 'Language Mixer', earned: true },
+  { icon: '🌍', name: 'Multilingual Master', earned: true },
+  { icon: '⭐', name: 'Top Scorer', earned: true },
+  { icon: '🐦', name: 'Early Bird', earned: true },
+];
+
 function App() {
-  const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/listen': 'listen', '/leaderboard': 'leaderboard', '/admin': 'admin', '/state': 'state' };
-  const pathMap = { home: '/', about: '/about', join: '/contribute', contribute: '/speak', listen: '/listen', leaderboard: '/leaderboard', admin: '/admin', state: '/state' };
+  const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/listen': 'listen', '/leaderboard': 'leaderboard', '/admin': 'admin', '/state': 'state', '/profile': 'profile' };
+  const pathMap = { home: '/', about: '/about', join: '/contribute', contribute: '/speak', listen: '/listen', leaderboard: '/leaderboard', admin: '/admin', state: '/state', profile: '/profile' };
   const [page, setPage] = useState(() => routeMap[window.location.pathname] || 'home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState(languages[0]);
@@ -58,6 +80,7 @@ function App() {
         {page === 'leaderboard' && <Leaderboard />}
         {page === 'admin' && <Admin />}
         {page === 'state' && <StatePage navigate={navigate} />}
+        {page === 'profile' && <Profile navigate={navigate} />}
       </main>
       <Footer navigate={navigate} />
     </div>
@@ -75,14 +98,18 @@ function Nav({ page, menuOpen, setMenuOpen, navigate }) {
         </div>
         <div className="nav-actions">
           <button className="language-nav"><span className="dot"/> Igbo <ChevronDown size={16}/></button>
+          <button className="points-pill" onClick={() => navigate('profile')} aria-label="View points"><Award size={14}/> 153</button>
           <button className="btn btn-primary nav-cta" onClick={() => navigate('join')}>Contribute <ArrowRight size={16}/></button>
+          <button className={page === 'profile' ? 'profile-avatar active' : 'profile-avatar'} onClick={() => navigate('profile')} aria-label="My profile"><User size={17}/></button>
           <button className="menu-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={23}/></button>
         </div>
       </nav>
     </header>
     <div className={menuOpen ? 'mobile-menu open' : 'mobile-menu'} aria-hidden={!menuOpen}>
       <div className="mobile-menu-top"><button className="brand" onClick={() => navigate('home')}><img className="brand-logo" src="/assets/nuji-logo.png" alt=""/><span>nuji</span></button><button className="icon-btn" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X/></button></div>
-      <div className="mobile-links">{links.map(([key,label], i) => <button key={key} onClick={() => navigate(key)}><span>0{i + 1}</span>{label}<ArrowRight size={18}/></button>)}</div>
+      <div className="mobile-links">{links.map(([key,label], i) => <button key={key} onClick={() => navigate(key)}><span>0{i + 1}</span>{label}<ArrowRight size={18}/></button>)}
+        <button onClick={() => navigate('profile')}><span>0{links.length + 1}</span>My Profile<ArrowRight size={18}/></button>
+      </div>
       <button className="btn btn-primary mobile-cta" onClick={() => navigate('join')}>Start contributing <ArrowRight size={17}/></button>
     </div>
   </>;
@@ -259,6 +286,78 @@ function StatePage({ navigate }) {
   </section>;
 }
 
+// Profile page — contributor stats, activity, and badges (from user's app screenshots)
+function Profile({ navigate }) {
+  const [tab, setTab] = useState('overview');
+  const overviewIconMap = { total: <BarChart3 size={20}/>, text: <Layers size={20}/>, voice: <Mic size={20}/>, both: <Award size={20}/>, mix: <MessageCircle size={20}/>, reviews: <Users size={20}/> };
+  const overviewToneMap = { total: 'tone-green', text: 'tone-blue', voice: 'tone-purple', both: 'tone-gold', mix: 'tone-pink', reviews: 'tone-teal' };
+  const badgesEarned = badgeList.filter(b => b.earned).length;
+  const badgesTotal = 19;
+  return <section className="profile-page wave-bg slim-wave">
+    <div className="container">
+      <button className="back-link profile-back" onClick={() => navigate('home')}><ArrowRight size={16} style={{transform:'rotate(180deg)'}}/> Back</button>
+
+      <div className="profile-hero-card">
+        <div className="profile-hero-top">
+          <div className="profile-hero-id">
+            <span className="profile-avatar-large"><User size={26}/></span>
+            <div><span className="profile-hero-label">Your progress</span><h1>My Profile</h1></div>
+          </div>
+        </div>
+        <div className="profile-pills">
+          <span className="profile-pill"><Award size={14}/> {profileStats.points} pts</span>
+          <span className="profile-pill"><Trophy size={14}/> #{profileStats.rank} rank</span>
+          <span className="profile-pill"><Mic size={14}/> {profileStats.submissions} submissions</span>
+          <span className="profile-pill"><Users size={14}/> {profileStats.reviews} reviews</span>
+        </div>
+      </div>
+
+      <div className="profile-level-card">
+        <span className="profile-level-icon"><Award size={22}/></span>
+        <div className="profile-level-body">
+          <div className="profile-level-row"><b>{profileStats.level}</b><span>{profileStats.levelProgress}/{profileStats.levelTarget}</span></div>
+          <div className="progress-track green-track"><i style={{width:`${(profileStats.levelProgress/profileStats.levelTarget)*100}%`}}/></div>
+        </div>
+      </div>
+
+      <div className="profile-tabs">
+        <button className={tab==='overview'?'profile-tab active':'profile-tab'} onClick={()=>setTab('overview')}>Overview</button>
+        <button className={tab==='activity'?'profile-tab active':'profile-tab'} onClick={()=>setTab('activity')}>Activity</button>
+        <button className={tab==='badges'?'profile-tab active':'profile-tab'} onClick={()=>setTab('badges')}>Badges ({badgesEarned})</button>
+      </div>
+
+      {tab === 'overview' && <div className="profile-panel">
+        <div className="overview-grid">
+          {overviewStats.map(s => <div className={`overview-card ${overviewToneMap[s.icon]}`} key={s.label}><span className="overview-icon">{overviewIconMap[s.icon]}</span><strong>{s.number}</strong><span>{s.label}</span></div>)}
+        </div>
+      </div>}
+
+      {tab === 'activity' && <div className="profile-panel">
+        <div className="activity-card">
+          <h3>Contribution Activity</h3>
+          <p className="activity-sub">{profileStats.submissions} contributions in the last year</p>
+          <div className="activity-grid">
+            <div className="activity-months">{activityMonths.map(m => <span key={m}>{m}</span>)}</div>
+            <div className="activity-cells">{activityWeeks.map((level,i) => <span key={i} className={`activity-cell level-${level}`}/>)}</div>
+          </div>
+        </div>
+        <div className="streak-card"><span className="streak-icon">🔥</span><div><b>1 day streak!</b><small>Keep contributing daily to maintain your streak</small></div></div>
+      </div>}
+
+      {tab === 'badges' && <div className="profile-panel">
+        <div className="badges-head">
+          <div><h3>Your Badges</h3><p className="activity-sub">{badgesEarned} of {badgesTotal} earned</p></div>
+          <span className="badges-percent">{Math.round((badgesEarned/badgesTotal)*100)}%</span>
+        </div>
+        <div className="progress-track green-track"><i style={{width:`${(badgesEarned/badgesTotal)*100}%`}}/></div>
+        <div className="badge-grid">
+          {badgeList.map(b => <div className="badge-card" key={b.name}><span className="badge-emoji">{b.icon}</span><b>{b.name}</b></div>)}
+        </div>
+      </div>}
+    </div>
+  </section>;
+}
+
 function Admin() {
   const [showPassword, setShowPassword] = useState(false);
   return <section className="admin-page"><div className="admin-shell"><div className="admin-aside"><img src="/assets/nuji-logo.png" alt="Nuji"/><div><div className="eyebrow">Nuji operations</div><h1>Keep every voice<br/><em>moving forward.</em></h1><p>Secure access for Nuji dataset administrators and community operations teams.</p></div><span>© 2026 Nuji · Internal platform</span></div><div className="admin-login"><div className="admin-mobile-logo"><img src="/assets/nuji-logo.png" alt="Nuji"/></div><div className="admin-copy"><div className="eyebrow ink">Admin portal</div><h2>Welcome back.</h2><p>Sign in to manage contributions and community quality.</p></div><form onSubmit={e=>e.preventDefault()}><Field label="Work email"><span className="input-icon"><Mail size={18}/><input type="email" placeholder="you@nuji.ng" required/></span></Field><Field label="Password"><span className="input-icon"><LockKeyhole size={18}/><input type={showPassword?'text':'password'} placeholder="Enter your password" required/><button type="button" onClick={()=>setShowPassword(!showPassword)}>{showPassword?'Hide':'Show'}</button></span></Field><div className="admin-options"><label><input type="checkbox"/> Remember me</label><button type="button">Forgot password?</button></div><button type="submit" className="btn btn-primary admin-submit">Sign in to admin <ArrowRight size={17}/></button></form><div className="admin-security"><LockKeyhole size={15}/><span>Protected access · Authorized Nuji team members only</span></div></div></div></section>;
@@ -271,7 +370,7 @@ function Join({ navigate, language, setLanguage }) {
   const update = (key, value) => setProfile(p => ({...p, [key]: value}));
   const toggleLanguage = (name) => setProfile(p => ({...p, languages:p.languages.includes(name) ? p.languages.filter(x=>x!==name) : [...p.languages, name]}));
   if(step === 'choose') return <section className="join-page"><div className="join-container choice-screen"><button className="back-link" onClick={()=>setStep('phone')}>← Back</button><div className="join-heading"><div className="eyebrow">Start contributing</div><h1>How do you want<br/>to <em>contribute?</em></h1><p>Choose how you'd like to get started today.</p></div><div className="entry-choice-grid"><button className="entry-choice quick" onClick={()=>navigate('contribute')}><div className="choice-top"><span className="choice-icon"><Mic/></span><span className="choice-badge">Fastest</span></div><h2>Quick Contribute</h2><p>Just 3 quick questions — no account needed. Start contributing in under 30 seconds.</p><span className="choice-action">Start now <ArrowRight size={17}/></span></button><button className="entry-choice profile" onClick={()=>setStep('profile')}><div className="choice-top"><span className="choice-icon"><Trophy/></span><span className="choice-badge">Track Points</span></div><h2>Create Profile</h2><p>Save your profile, earn points, and climb the leaderboard. Takes 2 minutes.</p><span className="choice-action">Set up profile <ArrowRight size={17}/></span></button></div></div></section>;
-  if(step === 'profile') return <section className="join-page"><div className="profile-container"><button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button><div className="form-heading"><div className="eyebrow">Profile setup · 1 of 1</div><h1>Tell us about <em>yourself.</em></h1><p>This helps tag your dialect correctly — making your data more valuable.</p></div><form className="profile-form" onSubmit={e=>{e.preventDefault();navigate('contribute')}}><Field label="Nickname (optional)"><input value={profile.nickname} onChange={e=>update('nickname',e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/></Field><div className="form-pair"><Field label="State of Origin *"><select value={profile.state} onChange={e=>update('state',e.target.value)} required><option value="">Select your state</option><option>Lagos</option><option>Enugu</option><option>Kano</option><option>Oyo</option><option>Rivers</option></select></Field><Field label="LGA *"><select value={profile.lga} onChange={e=>update('lga',e.target.value)} required disabled={!profile.state}><option value="">{profile.state?'Select your LGA':'Select state first'}</option><option>Central</option><option>East</option><option>West</option></select></Field></div><div className="form-pair"><Field label="Age Range *"><select value={profile.age} onChange={e=>update('age',e.target.value)} required><option value="">Select age range</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45+</option></select></Field><Field label="Gender *"><div className="gender-options">{['Male','Female','Prefer not to say'].map(g=><label key={g}><input type="radio" name="gender" value={g} checked={profile.gender===g} onChange={e=>update('gender',e.target.value)} required/><span>{g}</span></label>)}</div></Field></div><p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p><Field label="Languages spoken at home *"><div className="checkbox-grid">{languages.map(l=><label key={l.name}><input type="checkbox" checked={profile.languages.includes(l.name)} onChange={()=>toggleLanguage(l.name)}/><span>{l.name}</span></label>)}</div></Field><Field label="Contributing today in *"><select value={profile.contribution} onChange={e=>{update('contribution',e.target.value);setLanguage(languages.find(l=>l.name===e.target.value))} } required>{languages.map(l=><option key={l.name}>{l.name}</option>)}</select></Field>
+  if(step === 'profile') return <section className="join-page"><div className="profile-container"><button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button><div className="form-heading"><div className="eyebrow">Profile setup · 1 of 1</div><h1>Tell us about <em>yourself.</em></h1><p>This helps tag your dialect correctly — making your data more valuable.</p></div><form className="profile-form" onSubmit={e=>{e.preventDefault();navigate('profile')}}><Field label="Nickname (optional)"><input value={profile.nickname} onChange={e=>update('nickname',e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/></Field><div className="form-pair"><Field label="State of Origin *"><select value={profile.state} onChange={e=>update('state',e.target.value)} required><option value="">Select your state</option><option>Lagos</option><option>Enugu</option><option>Kano</option><option>Oyo</option><option>Rivers</option></select></Field><Field label="LGA *"><select value={profile.lga} onChange={e=>update('lga',e.target.value)} required disabled={!profile.state}><option value="">{profile.state?'Select your LGA':'Select state first'}</option><option>Central</option><option>East</option><option>West</option></select></Field></div><div className="form-pair"><Field label="Age Range *"><select value={profile.age} onChange={e=>update('age',e.target.value)} required><option value="">Select age range</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45+</option></select></Field><Field label="Gender *"><div className="gender-options">{['Male','Female','Prefer not to say'].map(g=><label key={g}><input type="radio" name="gender" value={g} checked={profile.gender===g} onChange={e=>update('gender',e.target.value)} required/><span>{g}</span></label>)}</div></Field></div><p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p><Field label="Languages spoken at home *"><div className="checkbox-grid">{languages.map(l=><label key={l.name}><input type="checkbox" checked={profile.languages.includes(l.name)} onChange={()=>toggleLanguage(l.name)}/><span>{l.name}</span></label>)}</div></Field><Field label="Contributing today in *"><select value={profile.contribution} onChange={e=>{update('contribution',e.target.value);setLanguage(languages.find(l=>l.name===e.target.value))} } required>{languages.map(l=><option key={l.name}>{l.name}</option>)}</select></Field>
       <Field label="Phone number">
         <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="02200000" inputMode="tel"/>
         <small>Used to recognise you on future visits. No OTP needed.</small>
