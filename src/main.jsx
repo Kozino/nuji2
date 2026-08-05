@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowRight, Check, ChevronDown, CircleHelp, Headphones, LockKeyhole, Mail, Menu, Mic, Pause, Play, RotateCcw, SkipForward, Trophy, Volume2, X, User, Clock, Award, Send, Phone, Music, MessageCircle, MapPin, Flag, BarChart3, Users, Layers, Globe, Zap } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, CircleHelp, Headphones, LockKeyhole, Mail, Menu, Mic, Pause, Play, RotateCcw, SkipForward, Trophy, Volume2, X, User, Clock, Award, Send, Phone, Music, MessageCircle, MapPin, Flag, BarChart3, Users, Layers, Globe, Zap, Lock, Type } from "lucide-react";
 import './styles.css';
 
 const languages = [
@@ -46,15 +46,93 @@ const overviewStats = [
 ];
 const activityMonths = ['A','M','J','J','A'];
 const activityWeeks = [0,1,0,0,0, 0,2,0,1,0, 0,1,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,1,0];
-const badgeList = [
-  { icon: '🎙️', name: 'First Voice', earned: true },
-  { icon: '🔥', name: 'On Fire', earned: true },
-  { icon: '👑', name: 'Pidgin King', earned: true },
-  { icon: '🔀', name: 'Language Mixer', earned: true },
-  { icon: '🌍', name: 'Multilingual Master', earned: true },
-  { icon: '⭐', name: 'Top Scorer', earned: true },
-  { icon: '🐦', name: 'Early Bird', earned: true },
+
+// Full badge catalogue, grouped the way the app presents "All Badges"
+const badgeCategories = [
+  { category: 'Getting Started', badges: [
+    { icon: '🎙️', name: 'First Voice', desc: 'Made your first contribution', earned: true },
+  ]},
+  { category: 'Volume', badges: [
+    { icon: '🔥', name: 'On Fire', desc: '10 contributions submitted', earned: true },
+    { icon: '💪', name: 'Dedicated', desc: '50 contributions submitted', earned: false },
+    { icon: '🏆', name: 'Champion', desc: '100 contributions submitted', earned: false },
+  ]},
+  { category: 'Voice', badges: [
+    { icon: '🎤', name: 'Voice Hero', desc: '20 voice recordings submitted', earned: false },
+  ]},
+  { category: 'Language', badges: [
+    { icon: '🦅', name: 'Igbo Pride', desc: '20 Igbo contributions', earned: false },
+    { icon: '⭐', name: 'Yoruba Star', desc: '20 Yoruba contributions', earned: false },
+    { icon: '🌙', name: 'Arewa Champion', desc: '20 Hausa contributions', earned: false },
+    { icon: '👑', name: 'Pidgin King', desc: '20 Pidgin contributions', earned: true },
+  ]},
+  { category: 'Code Switch', badges: [
+    { icon: '🔀', name: 'Language Mixer', desc: 'First code-switched submission', earned: true },
+    { icon: '🌍', name: 'Multilingual Master', desc: 'Code-switched in 3+ languages', earned: true },
+  ]},
+  { category: 'Streaks', badges: [
+    { icon: '📅', name: '7 Day Streak', desc: 'Contributed 7 days in a row', earned: false },
+    { icon: '⚔️', name: 'Two Week Warrior', desc: '14 day streak', earned: false },
+    { icon: '🌟', name: 'Monthly Legend', desc: 'Contributed 30 days in a row', earned: false },
+  ]},
+  { category: 'Community', badges: [
+    { icon: '👥', name: 'Reviewer', desc: 'Reviewed 10 submissions', earned: true },
+    { icon: '🧓', name: 'Elder', desc: 'Reviewed 50 submissions', earned: false },
+    { icon: '🤝', name: 'Village Champion', desc: 'Referred 5 contributors', earned: false },
+  ]},
+  { category: 'Points', badges: [
+    { icon: '⭐', name: 'Top Scorer', desc: 'Earned 100 points', earned: true },
+  ]},
+  { category: 'Special', badges: [
+    { icon: '🐦', name: 'Early Bird', desc: 'One of the first 100 contributors', earned: true },
+  ]},
 ];
+const allBadgesFlat = badgeCategories.flatMap(c => c.badges);
+
+// Points earned per contribution type, shown on the contribute screen
+const pointRules = { text: 3, voice: 5, both: 8, mix: 3 };
+
+// Nigeria's 36 states + FCT, each with their Local Government Areas
+const nigeriaStates = {
+  'Abia': ['Aba North','Aba South','Arochukwu','Bende','Ikwuano','Isiala Ngwa North','Isiala Ngwa South','Isuikwuato','Obi Ngwa','Ohafia','Osisioma','Ugwunagbo','Ukwa East','Ukwa West','Umuahia North','Umuahia South','Umu Nneochi'],
+  'Adamawa': ['Demsa','Fufure','Ganye','Gayuk','Gombi','Grie','Hong','Jada','Lamurde','Madagali','Maiha','Mayo Belwa','Michika','Mubi North','Mubi South','Numan','Shelleng','Song','Toungo','Yola North','Yola South'],
+  'Akwa Ibom': ['Abak','Eastern Obolo','Eket','Esit Eket','Essien Udim','Etim Ekpo','Etinan','Ibeno','Ibesikpo Asutan','Ibiono Ibom','Ika','Ikono','Ikot Abasi','Ikot Ekpene','Ini','Itu','Mbo','Mkpat Enin','Nsit Atai','Nsit Ibom','Nsit Ubium','Obot Akara','Okobo','Onna','Oron','Oruk Anam','Udung Uko','Ukanafun','Uruan','Urue-Offong/Oruko','Uyo'],
+  'Anambra': ['Aguata','Anambra East','Anambra West','Anaocha','Awka North','Awka South','Ayamelum','Dunukofia','Ekwusigo','Idemili North','Idemili South','Ihiala','Njikoka','Nnewi North','Nnewi South','Ogbaru','Onitsha North','Onitsha South','Orumba North','Orumba South','Oyi'],
+  'Bauchi': ['Alkaleri','Bauchi','Bogoro','Damban','Darazo','Dass','Gamawa','Ganjuwa','Giade','Itas/Gadau',"Jama'are",'Katagum','Kirfi','Misau','Ningi','Shira','Tafawa Balewa','Toro','Warji','Zaki'],
+  'Bayelsa': ['Brass','Ekeremor','Kolokuma/Opokuma','Nembe','Ogbia','Sagbama','Southern Ijaw','Yenagoa'],
+  'Benue': ['Ado','Agatu','Apa','Buruku','Gboko','Guma','Gwer East','Gwer West','Katsina-Ala','Konshisha','Kwande','Logo','Makurdi','Obi','Ogbadibo','Ohimini','Oju','Okpokwu','Otukpo','Tarka','Ukum','Ushongo','Vandeikya'],
+  'Borno': ['Abadam','Askira/Uba','Bama','Bayo','Biu','Chibok','Damboa','Dikwa','Gubio','Guzamala','Gwoza','Hawul','Jere','Kaga','Kala/Balge','Konduga','Kukawa','Kwaya Kusar','Mafa','Magumeri','Maiduguri','Marte','Mobbar','Monguno','Ngala','Nganzai','Shani'],
+  'Cross River': ['Abi','Akamkpa','Akpabuyo','Bakassi','Bekwarra','Biase','Boki','Calabar Municipal','Calabar South','Etung','Ikom','Obanliku','Obubra','Obudu','Odukpani','Ogoja','Yakuur','Yala'],
+  'Delta': ['Aniocha North','Aniocha South','Bomadi','Burutu','Ethiope East','Ethiope West','Ika North East','Ika South','Isoko North','Isoko South','Ndokwa East','Ndokwa West','Okpe','Oshimili North','Oshimili South','Patani','Sapele','Udu','Ughelli North','Ughelli South','Ukwuani','Uvwie','Warri North','Warri South','Warri South West'],
+  'Ebonyi': ['Abakaliki','Afikpo North','Afikpo South','Ebonyi','Ezza North','Ezza South','Ikwo','Ishielu','Ivo','Izzi','Ohaozara','Ohaukwu','Onicha'],
+  'Edo': ['Akoko-Edo','Egor','Esan Central','Esan North-East','Esan South-East','Esan West','Etsako Central','Etsako East','Etsako West','Igueben','Ikpoba-Okha','Orhionmwon','Oredo','Ovia North-East','Ovia South-West','Owan East','Owan West','Uhunmwonde'],
+  'Ekiti': ['Ado Ekiti','Efon','Ekiti East','Ekiti South-West','Ekiti West','Emure','Gbonyin','Ido Osi','Ijero','Ikere','Ikole','Ilejemeje','Irepodun/Ifelodun','Ise/Orun','Moba','Oye'],
+  'Enugu': ['Aninri','Awgu','Enugu East','Enugu North','Enugu South','Ezeagu','Igbo Etiti','Igbo Eze North','Igbo Eze South','Isi Uzo','Nkanu East','Nkanu West','Nsukka','Oji River','Udenu','Udi','Uzo Uwani'],
+  'FCT': ['Abaji','Abuja Municipal','Bwari','Gwagwalada','Kuje','Kwali'],
+  'Gombe': ['Akko','Balanga','Billiri','Dukku','Funakaye','Gombe','Kaltungo','Kwami','Nafada','Shongom','Yamaltu/Deba'],
+  'Imo': ['Aboh Mbaise','Ahiazu Mbaise','Ehime Mbano','Ezinihitte','Ideato North','Ideato South','Ihitte/Uboma','Ikeduru','Isiala Mbano','Isu','Mbaitoli','Ngor Okpala','Njaba','Nkwerre','Nwangele','Obowo','Oguta','Ohaji/Egbema','Okigwe','Orlu','Orsu','Oru East','Oru West','Owerri Municipal','Owerri North','Owerri West','Unuimo'],
+  'Jigawa': ['Auyo','Babura','Biriniwa','Birnin Kudu','Buji','Dutse','Gagarawa','Garki','Gumel','Guri','Gwaram','Gwiwa','Hadejia','Jahun','Kafin Hausa','Kaugama','Kazaure','Kiri Kasama','Kiyawa','Maigatari','Malam Madori','Miga','Ringim','Roni','Sule Tankarkar','Taura','Yankwashi'],
+  'Kaduna': ['Birnin Gwari','Chikun','Giwa','Igabi','Ikara','Jaba',"Jema'a",'Kachia','Kaduna North','Kaduna South','Kagarko','Kajuru','Kaura','Kauru','Kubau','Kudan','Lere','Makarfi','Sabon Gari','Sanga','Soba','Zangon Kataf','Zaria'],
+  'Kano': ['Ajingi','Albasu','Bagwai','Bebeji','Bichi','Bunkure','Dala','Dambatta','Dawakin Kudu','Dawakin Tofa','Doguwa','Fagge','Gabasawa','Garko','Garun Mallam','Gaya','Gezawa','Gwale','Gwarzo','Kabo','Kano Municipal','Karaye','Kibiya','Kiru','Kumbotso','Kunchi','Kura','Madobi','Makoda','Minjibir','Nasarawa','Rano','Rimin Gado','Rogo','Shanono','Sumaila','Takai','Tarauni','Tofa','Tsanyawa','Tudun Wada','Ungogo','Warawa','Wudil'],
+  'Katsina': ['Bakori','Batagarawa','Batsari','Baure','Bindawa','Charanchi','Dan Musa','Dandume','Danja','Daura','Dutsi',"Dutsin-Ma",'Faskari','Funtua','Ingawa','Jibia','Kafur','Kaita','Kankara','Kankia','Katsina','Kurfi','Kusada',"Mai'Adua",'Malumfashi','Mani','Mashi','Matazu','Musawa','Rimi','Sabuwa','Safana','Sandamu','Zango'],
+  'Kebbi': ['Aleiro','Arewa Dandi','Argungu','Augie','Bagudo','Birnin Kebbi','Bunza','Dandi','Fakai','Gwandu','Jega','Kalgo','Koko/Besse','Maiyama','Ngaski','Sakaba','Shanga','Suru','Wasagu/Danko','Yauri','Zuru'],
+  'Kogi': ['Adavi','Ajaokuta','Ankpa','Bassa','Dekina','Ibaji','Idah','Igalamela Odolu','Ijumu','Kabba/Bunu','Kogi','Lokoja','Mopa Muro','Ofu','Ogori/Magongo','Okehi','Okene','Olamaboro','Omala','Yagba East','Yagba West'],
+  'Kwara': ['Asa','Baruten','Edu','Ekiti','Ifelodun','Ilorin East','Ilorin South','Ilorin West','Irepodun','Isin','Kaiama','Moro','Offa','Oke Ero','Oyun','Pategi'],
+  'Lagos': ['Agege','Ajeromi-Ifelodun','Alimosho','Amuwo-Odofin','Apapa','Badagry','Epe','Eti Osa','Ibeju-Lekki','Ifako-Ijaiye','Ikeja','Ikorodu','Kosofe','Lagos Island','Lagos Mainland','Mushin','Ojo','Oshodi-Isolo','Shomolu','Surulere'],
+  'Nasarawa': ['Akwanga','Awe','Doma','Karu','Keana','Keffi','Kokona','Lafia','Nasarawa','Nasarawa Egon','Obi','Toto','Wamba'],
+  'Niger': ['Agaie','Agwara','Bida','Borgu','Bosso','Chanchaga','Edati','Gbako','Gurara','Katcha','Kontagora','Lapai','Lavun','Magama','Mariga','Mashegu','Mokwa','Moya','Paikoro','Rafi','Rijau','Shiroro','Suleja','Tafa','Wushishi'],
+  'Ogun': ['Abeokuta North','Abeokuta South','Ado-Odo/Ota','Egbado North','Egbado South','Ewekoro','Ifo','Ijebu East','Ijebu North','Ijebu North East','Ijebu Ode','Ikenne','Imeko Afon','Ipokia','Obafemi Owode','Odeda','Odogbolu','Ogun Waterside','Remo North','Shagamu'],
+  'Ondo': ['Akoko North-East','Akoko North-West','Akoko South-West','Akoko South-East','Akure North','Akure South','Ese Odo','Idanre','Ifedore','Ilaje','Ile Oluji/Okeigbo','Irele','Odigbo','Okitipupa','Ondo East','Ondo West','Ose','Owo'],
+  'Osun': ['Aiyedaade','Aiyedire','Atakunmosa East','Atakunmosa West','Boluwaduro','Boripe','Ede North','Ede South','Egbedore','Ejigbo','Ife Central','Ife East','Ife North','Ife South','Ifedayo','Ifelodun','Ila','Ilesa East','Ilesa West','Irepodun','Irewole','Isokan','Iwo','Obokun','Odo Otin','Ola Oluwa','Olorunda','Oriade','Orolu','Osogbo'],
+  'Oyo': ['Afijio','Akinyele','Atiba','Atisbo','Egbeda','Ibadan North','Ibadan North-East','Ibadan North-West','Ibadan South-East','Ibadan South-West','Ibarapa Central','Ibarapa East','Ibarapa North','Ido','Irepo','Iseyin','Itesiwaju','Iwajowa','Kajola','Lagelu','Ogbomosho North','Ogbomosho South','Ogo Oluwa','Olorunsogo','Oluyole','Ona Ara','Orelope','Ori Ire','Oyo East','Oyo West','Saki East','Saki West','Surulere'],
+  'Plateau': ['Barkin Ladi','Bassa','Bokkos','Jos East','Jos North','Jos South','Kanam','Kanke','Langtang North','Langtang South','Mangu','Mikang','Pankshin',"Qua'an Pan",'Riyom','Shendam','Wase'],
+  'Rivers': ['Abua/Odual','Ahoada East','Ahoada West','Akuku-Toru','Andoni','Asari-Toru','Bonny','Degema','Emuoha','Eleme','Etche','Gokana','Ikwerre','Khana','Obio/Akpor','Ogba/Egbema/Ndoni','Ogu/Bolo','Okrika','Omuma','Opobo/Nkoro','Oyigbo','Port Harcourt','Tai'],
+  'Sokoto': ['Binji','Bodinga','Dange Shuni','Gada','Goronyo','Gudu','Gwadabawa','Illela','Isa','Kebbe','Kware','Rabah','Sabon Birni','Shagari','Silame','Sokoto North','Sokoto South','Tambuwal','Tangaza','Tureta','Wamako','Wurno','Yabo'],
+  'Taraba': ['Ardo Kola','Bali','Donga','Gashaka','Gassol','Ibi','Jalingo','Karim Lamido','Kurmi','Lau','Sardauna','Takum','Ussa','Wukari','Yorro','Zing'],
+  'Yobe': ['Bade','Bursari','Damaturu','Fika','Fune','Geidam','Gujba','Gulani','Jakusko','Karasuwa','Machina','Nangere','Nguru','Potiskum','Tarmuwa','Yunusari','Yusufari'],
+  'Zamfara': ['Anka','Bakura','Birnin Magaji/Kiyaw','Bukkuyum','Bungudu','Chafe','Gummi','Gusau','Kaura Namoda','Maradun','Maru','Shinkafi','Talata Mafara','Tsafe','Zurmi'],
+};
+const nigeriaStateNames = Object.keys(nigeriaStates);
 
 function App() {
   const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/listen': 'listen', '/leaderboard': 'leaderboard', '/admin': 'admin', '/state': 'state', '/profile': 'profile' };
@@ -291,8 +369,8 @@ function Profile({ navigate }) {
   const [tab, setTab] = useState('overview');
   const overviewIconMap = { total: <BarChart3 size={20}/>, text: <Layers size={20}/>, voice: <Mic size={20}/>, both: <Award size={20}/>, mix: <MessageCircle size={20}/>, reviews: <Users size={20}/> };
   const overviewToneMap = { total: 'tone-green', text: 'tone-blue', voice: 'tone-purple', both: 'tone-gold', mix: 'tone-pink', reviews: 'tone-teal' };
-  const badgesEarned = badgeList.filter(b => b.earned).length;
-  const badgesTotal = 19;
+  const badgesEarned = allBadgesFlat.filter(b => b.earned).length;
+  const badgesTotal = allBadgesFlat.length;
   return <section className="profile-page wave-bg slim-wave">
     <div className="container">
       <button className="back-link profile-back" onClick={() => navigate('home')}><ArrowRight size={16} style={{transform:'rotate(180deg)'}}/> Back</button>
@@ -346,12 +424,21 @@ function Profile({ navigate }) {
 
       {tab === 'badges' && <div className="profile-panel">
         <div className="badges-head">
-          <div><h3>Your Badges</h3><p className="activity-sub">{badgesEarned} of {badgesTotal} earned</p></div>
+          <div><h3>All Badges</h3><p className="activity-sub">{badgesEarned} of {badgesTotal} earned</p></div>
           <span className="badges-percent">{Math.round((badgesEarned/badgesTotal)*100)}%</span>
         </div>
         <div className="progress-track green-track"><i style={{width:`${(badgesEarned/badgesTotal)*100}%`}}/></div>
-        <div className="badge-grid">
-          {badgeList.map(b => <div className="badge-card" key={b.name}><span className="badge-emoji">{b.icon}</span><b>{b.name}</b></div>)}
+        <div className="badge-categories">
+          {badgeCategories.map(cat => <div className="badge-category" key={cat.category}>
+            <h4>{cat.category}</h4>
+            <div className="badge-grid">
+              {cat.badges.map(b => <div className={b.earned ? 'badge-card earned' : 'badge-card locked'} key={b.name}>
+                <span className="badge-emoji">{b.earned ? b.icon : <Lock size={20}/>}</span>
+                <b>{b.name}</b>
+                <small>{b.desc}</small>
+              </div>)}
+            </div>
+          </div>)}
         </div>
       </div>}
     </div>
@@ -368,9 +455,10 @@ function Join({ navigate, language, setLanguage }) {
   const [phone, setPhone] = useState('');
   const [profile, setProfile] = useState({ nickname:'', state:'', lga:'', age:'', gender:'', languages:[], contribution:language.name });
   const update = (key, value) => setProfile(p => ({...p, [key]: value}));
+  const updateState = (value) => setProfile(p => ({...p, state: value, lga: ''}));
   const toggleLanguage = (name) => setProfile(p => ({...p, languages:p.languages.includes(name) ? p.languages.filter(x=>x!==name) : [...p.languages, name]}));
   if(step === 'choose') return <section className="join-page"><div className="join-container choice-screen"><button className="back-link" onClick={()=>setStep('phone')}>← Back</button><div className="join-heading"><div className="eyebrow">Start contributing</div><h1>How do you want<br/>to <em>contribute?</em></h1><p>Choose how you'd like to get started today.</p></div><div className="entry-choice-grid"><button className="entry-choice quick" onClick={()=>navigate('contribute')}><div className="choice-top"><span className="choice-icon"><Mic/></span><span className="choice-badge">Fastest</span></div><h2>Quick Contribute</h2><p>Just 3 quick questions — no account needed. Start contributing in under 30 seconds.</p><span className="choice-action">Start now <ArrowRight size={17}/></span></button><button className="entry-choice profile" onClick={()=>setStep('profile')}><div className="choice-top"><span className="choice-icon"><Trophy/></span><span className="choice-badge">Track Points</span></div><h2>Create Profile</h2><p>Save your profile, earn points, and climb the leaderboard. Takes 2 minutes.</p><span className="choice-action">Set up profile <ArrowRight size={17}/></span></button></div></div></section>;
-  if(step === 'profile') return <section className="join-page"><div className="profile-container"><button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button><div className="form-heading"><div className="eyebrow">Profile setup · 1 of 1</div><h1>Tell us about <em>yourself.</em></h1><p>This helps tag your dialect correctly — making your data more valuable.</p></div><form className="profile-form" onSubmit={e=>{e.preventDefault();navigate('profile')}}><Field label="Nickname (optional)"><input value={profile.nickname} onChange={e=>update('nickname',e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/></Field><div className="form-pair"><Field label="State of Origin *"><select value={profile.state} onChange={e=>update('state',e.target.value)} required><option value="">Select your state</option><option>Lagos</option><option>Enugu</option><option>Kano</option><option>Oyo</option><option>Rivers</option></select></Field><Field label="LGA *"><select value={profile.lga} onChange={e=>update('lga',e.target.value)} required disabled={!profile.state}><option value="">{profile.state?'Select your LGA':'Select state first'}</option><option>Central</option><option>East</option><option>West</option></select></Field></div><div className="form-pair"><Field label="Age Range *"><select value={profile.age} onChange={e=>update('age',e.target.value)} required><option value="">Select age range</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45+</option></select></Field><Field label="Gender *"><div className="gender-options">{['Male','Female','Prefer not to say'].map(g=><label key={g}><input type="radio" name="gender" value={g} checked={profile.gender===g} onChange={e=>update('gender',e.target.value)} required/><span>{g}</span></label>)}</div></Field></div><p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p><Field label="Languages spoken at home *"><div className="checkbox-grid">{languages.map(l=><label key={l.name}><input type="checkbox" checked={profile.languages.includes(l.name)} onChange={()=>toggleLanguage(l.name)}/><span>{l.name}</span></label>)}</div></Field><Field label="Contributing today in *"><select value={profile.contribution} onChange={e=>{update('contribution',e.target.value);setLanguage(languages.find(l=>l.name===e.target.value))} } required>{languages.map(l=><option key={l.name}>{l.name}</option>)}</select></Field>
+  if(step === 'profile') return <section className="join-page"><div className="profile-container"><button className="back-link" onClick={()=>setStep('choose')}>← Back to options</button><div className="form-heading"><div className="eyebrow">Profile setup · 1 of 1</div><h1>Tell us about <em>yourself.</em></h1><p>This helps tag your dialect correctly — making your data more valuable.</p></div><form className="profile-form" onSubmit={e=>{e.preventDefault();navigate('profile')}}><Field label="Nickname (optional)"><input value={profile.nickname} onChange={e=>update('nickname',e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/></Field><div className="form-pair"><Field label="State of Origin *"><select value={profile.state} onChange={e=>updateState(e.target.value)} required><option value="">Select your state</option>{nigeriaStateNames.map(s=><option key={s}>{s}</option>)}</select></Field><Field label="LGA *"><select value={profile.lga} onChange={e=>update('lga',e.target.value)} required disabled={!profile.state}><option value="">{profile.state?'Select your LGA':'Select state first'}</option>{(nigeriaStates[profile.state]||[]).map(l=><option key={l}>{l}</option>)}</select></Field></div><div className="form-pair"><Field label="Age Range *"><select value={profile.age} onChange={e=>update('age',e.target.value)} required><option value="">Select age range</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45+</option></select></Field><Field label="Gender *"><div className="gender-options">{['Male','Female','Prefer not to say'].map(g=><label key={g}><input type="radio" name="gender" value={g} checked={profile.gender===g} onChange={e=>update('gender',e.target.value)} required/><span>{g}</span></label>)}</div></Field></div><p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p><Field label="Languages spoken at home *"><div className="checkbox-grid">{languages.map(l=><label key={l.name}><input type="checkbox" checked={profile.languages.includes(l.name)} onChange={()=>toggleLanguage(l.name)}/><span>{l.name}</span></label>)}</div></Field><Field label="Contributing today in *"><select value={profile.contribution} onChange={e=>{update('contribution',e.target.value);setLanguage(languages.find(l=>l.name===e.target.value))} } required>{languages.map(l=><option key={l.name}>{l.name}</option>)}</select></Field>
       <Field label="Phone number">
         <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="02200000" inputMode="tel"/>
         <small>Used to recognise you on future visits. No OTP needed.</small>
@@ -382,25 +470,134 @@ function Join({ navigate, language, setLanguage }) {
 function Field({label, children}) { return <label className="form-field"><span>{label}</span>{children}</label> }
 function Trust({icon,title,text}) { return <div className="trust-item"><span>{icon}</span><div><b>{title}</b><small>{text}</small></div></div> }
 
+const exampleResponses = [
+  "Nna men! Where you dey? E don tey — kedu ka ị mere? Hope everything dey okay sha.",
+  "Biko come help me carry this thing, my body no fit again — agwụọla m ike!",
+  "Oya let's go! Time waits for no one — anyị gaghị abia oge!",
+];
+const formalityLevels = ['Very Casual', 'Normal', 'Formal'];
+
 function Contribute({ language, setLanguage }) {
-  const [stage, setStage] = useState('prepare');
+  const [textResponse, setTextResponse] = useState('');
+  const [recStage, setRecStage] = useState('idle'); // idle | recording | recorded
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [count, setCount] = useState(3);
-  useEffect(() => { if(stage !== 'recording') return; const id = setInterval(() => setTime(t => t + 1), 1000); return () => clearInterval(id); }, [stage]);
-  const begin = () => {setTime(0);setStage('recording')};
-  const stop = () => setStage('review');
-  const next = () => {setCount(c => c + 1);setTime(0);setStage('prepare')};
+  const [selectedLangs, setSelectedLangs] = useState([]);
+  const [translation, setTranslation] = useState('');
+  const [formality, setFormality] = useState('Normal');
+  const [submitted, setSubmitted] = useState(false);
+  const [earnedPoints, setEarnedPoints] = useState(0);
+  const [count, setCount] = useState(1);
+
+  useEffect(() => { if(recStage !== 'recording') return; const id = setInterval(() => setTime(t => t + 1), 1000); return () => clearInterval(id); }, [recStage]);
+
+  const hasText = textResponse.trim().length > 0;
+  const hasVoice = recStage === 'recorded';
+  const basePoints = hasText && hasVoice ? pointRules.both : hasVoice ? pointRules.voice : hasText ? pointRules.text : 0;
+  const mixBonus = selectedLangs.length >= 2 ? pointRules.mix : 0;
+  const totalPoints = basePoints + mixBonus;
+
+  const toggleLang = (name) => setSelectedLangs(l => l.includes(name) ? l.filter(x => x !== name) : [...l, name]);
+  const startRecording = () => { setTime(0); setRecStage('recording'); };
+  const stopRecording = () => setRecStage('recorded');
+  const reRecord = () => { setTime(0); setRecStage('idle'); };
   const fmt = (n) => `00:${String(n).padStart(2,'0')}`;
+
+  const canSubmit = hasText || hasVoice;
+  const submit = () => { setEarnedPoints(totalPoints); setSubmitted(true); };
+  const nextSentence = () => {
+    setCount(c => c + 1); setTextResponse(''); setRecStage('idle'); setTime(0);
+    setSelectedLangs([]); setTranslation(''); setFormality('Normal'); setSubmitted(false);
+  };
+
   return <section className="task-page wave-bg slim-wave"><div className="container task-layout">
-    <aside className="task-aside"><div className="eyebrow ink">Contribute</div><h1>Speak a little<br/><em>closer to home.</em></h1><p>Read each sentence naturally. Every clear recording makes the collection stronger.</p><div className="task-aside-card"><span>Language</span><LanguageSelect language={language} setLanguage={setLanguage}/><div className="mini-progress"><div><span>Today’s goal</span><b>{count}/10 sentences</b></div><div className="progress-track"><i style={{width: `${count*10}%`}}/></div></div></div><div className="aside-tip"><CircleHelp size={18}/><span>Find a quiet spot and speak at a comfortable pace.</span></div></aside>
-    <div className="task-main"><Stepper stage={stage}/><div className="task-card">
-      <div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Sentence {count} of 10</span></div>
-      {stage === 'prepare' && <><div className="task-icon"><Mic size={27}/></div><h2>Ready when you are.</h2><p className="task-intro">We’ll ask for microphone access, then you can record this sentence in your natural voice.</p><div className="prompt-card"><span>Read this aloud</span><p>“{language.sample}”</p></div><button className="btn btn-primary task-cta" onClick={begin}>Start recording <Mic size={18}/></button><p className="task-help">Your recording is only sent when you choose submit.</p></>}
-      {stage === 'recording' && <><div className="recording-header"><span className="record-status large"><i/> Recording</span><span>{fmt(time)}</span></div><div className="prompt-card active"><span>Read this aloud</span><p>“{language.sample}”</p></div><div className="big-waveform">{Array.from({length:37},(_,i)=><b key={i} style={{height:`${16+Math.abs(Math.sin(i*.8+time))*68}px`}}/>)}</div><button className="record-button" onClick={stop} aria-label="Stop recording"><span><span className="stop-square"/></span></button><p className="record-instruction">Tap when you’ve finished speaking</p></>}
-      {stage === 'review' && <><div className="task-icon success"><Check size={28}/></div><h2>Have a quick listen.</h2><div className="prompt-card"><span>What you recorded</span><p>“{language.sample}”</p></div><div className="review-player"><button className="round-play dark" onClick={()=>setIsPlaying(!isPlaying)} aria-label={isPlaying?'Pause':'Play'}>{isPlaying?<Pause size={18} fill="currentColor"/>:<Play size={18} fill="currentColor"/>}</button><div className="player-line"><i style={{width:isPlaying?'66%':'24%'}}/></div><span>00:{String(Math.max(time,8)).padStart(2,'0')}</span></div><div className="review-actions"><button className="btn btn-secondary" onClick={()=>setStage('prepare')}><RotateCcw size={17}/> Record again</button><button className="btn btn-primary" onClick={()=>setStage('submitted')}>Submit recording <ArrowRight size={17}/></button></div></>}
-      {stage === 'submitted' && <><div className="task-icon success"><Check size={29}/></div><h2>That sounded great.</h2><p className="task-intro">Your contribution has been added to the {language.name} collection. Thank you for making room for more voices.</p><div className="success-line"><span><Check size={15}/></span> Sentence {count} saved</div><button className="btn btn-primary task-cta" onClick={next}>Next sentence <ArrowRight size={18}/></button><button className="text-action centered" onClick={()=>setStage('prepare')}>Take a short break</button></>}
-    </div></div>
+    <aside className="task-aside"><div className="eyebrow ink">Contribute</div><h1>Speak a little<br/><em>closer to home.</em></h1><p>Read each prompt naturally. Type it, say it, or both — every clear contribution makes the collection stronger.</p><div className="task-aside-card"><span>Language</span><LanguageSelect language={language} setLanguage={setLanguage}/><div className="mini-progress"><div><span>Today’s goal</span><b>{count}/10 sentences</b></div><div className="progress-track"><i style={{width: `${count*10}%`}}/></div></div></div><div className="aside-tip"><CircleHelp size={18}/><span>Find a quiet spot and speak at a comfortable pace.</span></div></aside>
+
+    <div className="task-main">
+      {!submitted && <>
+        <div className="points-banner">
+          <span className="points-banner-label">Points for this sentence</span>
+          <div className="points-pills-row">
+            <span className={`points-pill-lg ${hasText && !hasVoice ? 'active' : ''}`}><Type size={14}/> Text +{pointRules.text}</span>
+            <span className={`points-pill-lg ${hasVoice && !hasText ? 'active' : ''}`}><Mic size={14}/> Voice +{pointRules.voice}</span>
+            <span className={`points-pill-lg ${hasText && hasVoice ? 'active' : ''}`}><Check size={14}/> Both +{pointRules.both}</span>
+            <span className={`points-pill-lg mix ${mixBonus ? 'active' : ''}`}>🔀 Mix +{pointRules.mix} bonus</span>
+          </div>
+          {totalPoints > 0 && <div className="points-banner-total">You'll earn <strong>{totalPoints} pts</strong> for this one</div>}
+        </div>
+
+        <div className="task-card contribute-card">
+          <div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Sentence {count} of 10</span></div>
+
+          <div className="prompt-card">
+            <span>Today's Prompt — {language.name}</span>
+            <p>“{language.sample}”</p>
+          </div>
+
+          <div className="no-rules-note">
+            <span className="no-rules-badge">No rules — just speak naturally</span>
+            <p>Respond exactly how you'd say it to a close friend — one language, three languages, whatever comes out naturally. However it flows is exactly what we need.</p>
+            <div className="example-list">
+              <span>Example responses</span>
+              {exampleResponses.map((ex,i) => <p key={i} className="example-item">“{ex}”</p>)}
+            </div>
+          </div>
+
+          <div className="contribute-step">
+            <div className="contribute-step-head"><span className="step-num">1</span><h3>Type your response</h3></div>
+            <textarea className="response-textarea" rows={3} value={textResponse} onChange={e=>setTextResponse(e.target.value)} placeholder="Type exactly what you'd say — mix languages if that's natural for you..."/>
+          </div>
+
+          <div className="contribute-step">
+            <div className="contribute-step-head"><span className="step-num">2</span><h3>Record your voice</h3></div>
+            {recStage === 'idle' && <button className="btn btn-secondary voice-start-btn" onClick={startRecording}><Mic size={17}/> Tap the microphone to start recording</button>}
+            {recStage === 'recording' && <div className="inline-recorder">
+              <div className="recording-header"><span className="record-status large"><i/> Recording</span><span>{fmt(time)}</span></div>
+              <div className="big-waveform">{Array.from({length:31},(_,i)=><b key={i} style={{height:`${16+Math.abs(Math.sin(i*.8+time))*54}px`}}/>)}</div>
+              <button className="record-button" onClick={stopRecording} aria-label="Stop recording"><span><span className="stop-square"/></span></button>
+              <p className="record-instruction">Tap when you’ve finished speaking</p>
+            </div>}
+            {recStage === 'recorded' && <div className="inline-recorder">
+              <div className="review-player"><button className="round-play dark" onClick={()=>setIsPlaying(!isPlaying)} aria-label={isPlaying?'Pause':'Play'}>{isPlaying?<Pause size={18} fill="currentColor"/>:<Play size={18} fill="currentColor"/>}</button><div className="player-line"><i style={{width:isPlaying?'66%':'24%'}}/></div><span>00:{String(Math.max(time,3)).padStart(2,'0')}</span></div>
+              <button className="text-action small" onClick={reRecord}><RotateCcw size={15}/> Record again</button>
+            </div>}
+          </div>
+
+          <div className="contribute-step">
+            <h3 className="step-label">Which languages did you use? <small>(select all that apply)</small></h3>
+            <p className="step-sublabel">Even if you mixed — especially if you mixed! 🔀</p>
+            <div className="checkbox-grid">
+              {['Igbo','Yoruba','Hausa','Pidgin','English'].map(name => <label key={name}><input type="checkbox" checked={selectedLangs.includes(name)} onChange={()=>toggleLang(name)}/><span>{name}</span></label>)}
+            </div>
+          </div>
+
+          <div className="contribute-step">
+            <h3 className="step-label">English translation <small>(optional but very valuable)</small></h3>
+            <p className="step-sublabel">This helps align meanings across languages for AI training 🧠</p>
+            <textarea className="response-textarea" rows={2} value={translation} onChange={e=>setTranslation(e.target.value)} placeholder="What does this mean in English?"/>
+          </div>
+
+          <div className="contribute-step">
+            <h3 className="step-label">How formal is this response?</h3>
+            <div className="formality-toggle">
+              {formalityLevels.map(f => <button key={f} className={formality===f ? 'formality-btn active' : 'formality-btn'} onClick={()=>setFormality(f)}>{f}</button>)}
+            </div>
+          </div>
+
+          <button className="btn btn-primary task-cta submit-response-btn" disabled={!canSubmit} onClick={submit}>Submit response <ArrowRight size={17}/></button>
+          {!canSubmit && <p className="task-help">Type a response or record your voice to submit.</p>}
+        </div>
+      </>}
+
+      {submitted && <div className="task-card">
+        <div className="task-icon success"><Check size={29}/></div>
+        <h2>That sounded great.</h2>
+        <p className="task-intro">Your contribution has been added to the {language.name} collection. Thank you for making room for more voices.</p>
+        <div className="success-line"><span><Check size={15}/></span> +{earnedPoints} points earned</div>
+        <button className="btn btn-primary task-cta" onClick={nextSentence}>Next sentence <ArrowRight size={18}/></button>
+        <button className="text-action centered" onClick={nextSentence}>Take a short break</button>
+      </div>}
+    </div>
   </div></section>;
 }
 
@@ -426,27 +623,20 @@ function Stat({number,label,accent}) { return <div className={`stat ${accent}`}>
 function Path({icon,number,title,text,cta,action,tone}) { return <article className={`path-card ${tone}`}><div className="path-top"><span className="path-icon">{icon}</span><span>{number}</span></div><h3>{title}</h3><p>{text}</p><button onClick={action}>{cta}<ArrowRight size={17}/></button></article> }
 
 function Footer({navigate}) {
+  const socials = [
+    { label: 'Facebook', d: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' },
+    { label: 'Instagram', d: 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z' },
+    { label: 'Telegram', d: 'M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z' },
+    { label: 'WhatsApp', d: 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z' },
+    { label: 'Twitter/X', d: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' },
+    { label: 'TikTok', d: 'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.76-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.3-.67.31-1.06.04-2.26.02-4.51.02-6.77.02-2.93-.01-5.85.02-8.78z' },
+  ];
   return <footer className="footer"><div className="container footer-grid">
     <div><button className="brand footer-brand" onClick={()=>navigate('home')}><img className="brand-logo" src="/assets/nuji-logo.png" alt=""/><span>nuji</span></button><p>Language data made by the people who speak it.</p>
       <div className="footer-social">
-        <a href="#" aria-label="Facebook">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-        </a>
-        <a href="#" aria-label="Instagram">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-        </a>
-        <a href="#" aria-label="Telegram">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-        </a>
-        <a href="#" aria-label="WhatsApp">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        </a>
-        <a href="#" aria-label="Twitter/X">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-        </a>
-        <a href="#" aria-label="TikTok">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.76-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.3-.67.31-1.06.04-2.26.02-4.51.02-6.77.02-2.93-.01-5.85.02-8.78z"/></svg>
-        </a>
+        {socials.map(s => <a key={s.label} href="#" aria-label={s.label}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d={s.d}/></svg>
+        </a>)}
       </div>
     </div>
     <div className="footer-links"><div><span>Explore</span><button onClick={()=>navigate('join')}>Contribute</button><button onClick={()=>navigate('listen')}>Listen</button><button onClick={()=>navigate('leaderboard')}>Leaderboard</button><button onClick={()=>navigate('state')}>State vs State</button></div><div><span>Languages</span><button>Igbo</button><button>Yoruba</button><button>Hausa</button><button>Pidgin</button></div></div>
