@@ -147,7 +147,23 @@ function App() {
   const [page, setPage] = useState(() => routeMap[window.location.pathname] || 'home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState(languages[0]);
-  const [hasProfile, setHasProfile] = useState(false); // NEW — becomes true once a profile is created
+  
+  // Read from localStorage so it persists on page refresh
+  const [hasProfile, setHasProfile] = useState(() => {
+    try {
+      return localStorage.getItem('nuji_has_profile') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const updateHasProfile = (val) => {
+    setHasProfile(val);
+    try {
+      localStorage.setItem('nuji_has_profile', val ? 'true' : 'false');
+    } catch {}
+  };
+
   const navigate = (next) => { const path = pathMap[next] || '/'; window.history.pushState({}, '', path); setPage(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   useEffect(() => { const onPop = () => setPage(routeMap[window.location.pathname] || 'home'); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop); }, []);
@@ -160,7 +176,8 @@ function App() {
       <main id="main">
         {page === 'home' && <Home navigate={navigate} language={language} setLanguage={setLanguage} />}
         {page === 'about' && <About navigate={navigate} />}
-        {page === 'join' && <Join navigate={navigate} language={language} setLanguage={setLanguage} setHasProfile={setHasProfile} />}
+        {/* Pass the new updateHasProfile function here */}
+        {page === 'join' && <Join navigate={navigate} language={language} setLanguage={setLanguage} setHasProfile={updateHasProfile} />}
         {page === 'contribute' && <Contribute language={language} setLanguage={setLanguage} />}
         {page === 'listen' && <Listen language={language} setLanguage={setLanguage} />}
         {page === 'leaderboard' && <Leaderboard />}
@@ -193,7 +210,8 @@ function Nav({ page, menuOpen, setMenuOpen, navigate, hasProfile }) {
     </header>
     <div className={menuOpen ? 'mobile-menu open' : 'mobile-menu'} aria-hidden={!menuOpen}>
       <div className="mobile-menu-top"><button className="brand" onClick={() => navigate('home')}><img className="brand-logo" src="/assets/nuji-logo.png" alt=""/><span>nuji</span></button><button className="icon-btn" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X/></button></div>
-      <div className="mobile-links">{links.map(([key,label], i) => <button key={key} onClick={() => navigate(key)}><span>0{i + 1}</span>{label}<ArrowRight size={18}/></button>)}
+      <div className="mobile-links">
+        {links.map(([key,label], i) => <button key={key} onClick={() => navigate(key)}><span>0{i + 1}</span>{label}<ArrowRight size={18}/></button>)}
         {hasProfile && <button onClick={() => navigate('profile')}><span>0{links.length + 1}</span>My Profile<ArrowRight size={18}/></button>}
       </div>
       <button className="btn btn-primary mobile-cta" onClick={() => navigate('join')}>Start contributing <ArrowRight size={17}/></button>
@@ -440,7 +458,20 @@ function Profile({ navigate }) {
       <span className="invite-stat-pill"><Users size={14}/> {referralStats.joined} joined</span>
       <span className="invite-stat-pill gold"><Award size={14}/> +{referralStats.points} pts</span>
     </div>
-    <button className="btn invite-whatsapp"><MessageCircle size={17}/> Share on WhatsApp</button>
+    
+    {/* --- UPDATED WHATSAPP BUTTON --- */}
+    <button 
+      className="btn invite-whatsapp" 
+      onClick={() => {
+        const shareText = `🇳🇬 Join me on Nuji! Let's build AI that understands our Nigerian languages. Use my link to start contributing: ${referralStats.url}`;
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      }}
+    >
+      <MessageCircle size={17}/> Share on WhatsApp
+    </button>
+    {/* ------------------------------- */}
+
     <button className="btn btn-primary invite-continue" onClick={() => navigate('contribute')}>Continue Contributing <ArrowRight size={17}/></button>
   </div>
 </div>}
@@ -529,7 +560,7 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
           <h1>Tell us about <em>yourself.</em></h1>
           <p>This helps tag your dialect correctly — making your data more valuable.</p>
         </div>
-        <form className="profile-form" onSubmit={e=>{e.preventDefault();setHasProfile(true);navigate('profile')}}>
+        <form className="profile-form" onSubmit={e=>{e.preventDefault(); setHasProfile(true); navigate('profile')}}>
           <Field label="Nickname (optional)">
             <input value={profile.nickname} onChange={e=>update('nickname',e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/>
           </Field>
@@ -593,6 +624,7 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
     </section>
   );
   
+  // Initial phone number screen
   return (
     <section className="join-page">
       <div className="join-container phone-layout">
@@ -600,12 +632,15 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
           <div className="eyebrow">Contribute to Nuji</div>
           <h1>Welcome back <span>👋</span></h1>
           <p>Enter your phone number to continue. New here? We'll set you up in seconds.</p>
-          <form onSubmit={e=>{e.preventDefault();setStep('choose')}}>
+          
+          {/* Set hasProfile to true when they submit their phone number */}
+          <form onSubmit={e=>{e.preventDefault(); setHasProfile(true); setStep('choose');}}>
             <Field label="Phone Number">
               <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="080 0000 0000" inputMode="tel" required/>
             </Field>
             <button className="btn btn-primary phone-submit" type="submit">Continue <ArrowRight size={18}/></button>
           </form>
+          
           <div className="phone-key">
             <span>🔑</span>
             <div>
