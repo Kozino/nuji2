@@ -142,8 +142,8 @@ const nigeriaStates = {
 const nigeriaStateNames = Object.keys(nigeriaStates);
 
 function App() {
-  const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/listen': 'listen', '/leaderboard': 'leaderboard', '/admin': 'admin', '/state': 'state', '/profile': 'profile' };
-  const pathMap = { home: '/', about: '/about', join: '/contribute', contribute: '/speak', listen: '/listen', leaderboard: '/leaderboard', admin: '/admin', state: '/state', profile: '/profile' };
+  const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/listen': 'listen', '/leaderboard': 'leaderboard', '/state': 'state', '/profile': 'profile' };
+  const pathMap = { home: '/', about: '/about', join: '/contribute', contribute: '/speak', listen: '/listen', leaderboard: '/leaderboard', state: '/state', profile: '/profile' };
   const [page, setPage] = useState(() => routeMap[window.location.pathname] || 'home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState(languages[0]);
