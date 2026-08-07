@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowRight, Check, ChevronDown, CircleHelp, Headphones, LockKeyhole, Mail, Menu, Mic, Pause, Play, RotateCcw, SkipForward, Trophy, Volume2, X, User, Clock, Award, Send, Phone, Music, MessageCircle, MapPin, Flag, BarChart3, Users, Layers, Globe, Zap, Lock, Type } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, CircleHelp, Headphones, LockKeyhole, Mail, Menu, Mic, Pause, Play, RotateCcw, SkipForward, Trophy, Volume2, X, User, Clock, Award, Send, Phone, Music, MessageCircle, MapPin, Flag, BarChart3, Users, Layers, Globe, Zap, Lock, Type, LogOut } from "lucide-react";
 import { api } from './api.js';
 import nuji10 from './assets/nuji14.jpg';
 import nuji11 from './assets/nuji13.jpg';
@@ -38,7 +38,20 @@ const zones = ['All States', 'South East', 'South West', 'South South', 'North C
 
 const pointRules = { text: 3, voice: 5, both: 8, mix: 3 };
 
-// Fallback badges (used only when the backend is unreachable)
+// ---------- Nigerian phone helpers ----------
+const normalizeNaija = (p) => {
+  let d = String(p || '').replace(/[\s-]/g, '');
+  if (d.startsWith('+234')) d = '0' + d.slice(4);
+  else if (d.startsWith('234')) d = '0' + d.slice(3);
+  return d;
+};
+const validNaijaPhone = (p) => /^0(70|80|81|90|91|93)\d{8}$/.test(p);
+
+// ---------- cookie session helpers ----------
+const getCookie = () => { const m = document.cookie.match(/(?:^|; )nuji_phone=([^;]+)/); return m ? decodeURIComponent(m[1]) : ''; };
+const setCookie = (v) => { document.cookie = `nuji_phone=${encodeURIComponent(v)}; path=/; max-age=31536000; SameSite=Lax`; };
+const clearCookie = () => { document.cookie = 'nuji_phone=; path=/; max-age=0'; };
+
 const FALLBACK_BADGES = [
   { category: 'Getting Started', icon: '🎙️', name: 'First Voice', desc: 'Made your first contribution', earned: true },
   { category: 'Volume', icon: '🔥', name: 'On Fire', desc: '10 contributions submitted', earned: true },
@@ -52,7 +65,7 @@ const FALLBACK_BADGES = [
   { category: 'Code Switch', icon: '🔀', name: 'Language Mixer', desc: 'First code-switched submission', earned: true },
   { category: 'Code Switch', icon: '🌍', name: 'Multilingual Master', desc: 'Code-switched in 3+ languages', earned: true },
   { category: 'Streaks', icon: '📅', name: '7 Day Streak', desc: 'Contributed 7 days in a row', earned: false },
-  { category: 'Streaks', icon: '⚔️', name: 'Two Week Warrior', desc: '14 day streak', earned: false },
+  { category: 'Streaks', icon: '️', name: 'Two Week Warrior', desc: '14 day streak', earned: false },
   { category: 'Streaks', icon: '🌟', name: 'Monthly Legend', desc: 'Contributed 30 days in a row', earned: false },
   { category: 'Community', icon: '👥', name: 'Reviewer', desc: 'Reviewed 10 submissions', earned: true },
   { category: 'Community', icon: '🧓', name: 'Elder', desc: 'Reviewed 50 submissions', earned: false },
@@ -63,11 +76,12 @@ const FALLBACK_BADGES = [
 
 const recentWeeks = [0,1,0,0,0, 0,2,0,1,0, 0,1,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,1,0];
 
-// Demo profile shown when the backend is offline
+// Demo profile shown only when the backend is unreachable
 const DEMO_PROFILE = {
   phone: '', nickname: '', state: 'Anambra', lga: '',
   points: 153, rank: 1, submissions: 43, reviews: 9,
   level: 'Expert Contributor', levelProgress: 73, levelTarget: 100, streak: 1,
+  profileKind: 'full', hasProfile: true,
   overview: [
     { icon: 'total', number: 43, label: 'Total' },
     { icon: 'text', number: 25, label: 'Text Only' },
@@ -139,12 +153,13 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState(languages[0]);
 
-  // ---- backend session: phone number is the login key ----
-  const [phone, setPhoneState] = useState(() => { try { return localStorage.getItem('nuji_phone') || ''; } catch { return ''; } });
+  // ---- session: localStorage + cookie, phone number is the login key ----
+  const [phone, setPhoneState] = useState(() => { try { return localStorage.getItem('nuji_phone') || getCookie(); } catch { return getCookie(); } });
   const [profile, setProfile] = useState(null); // live data from the API
 
   const setPhone = (p) => {
     try { p ? localStorage.setItem('nuji_phone', p) : localStorage.removeItem('nuji_phone'); } catch {}
+    p ? setCookie(p) : clearCookie();
     setPhoneState(p);
   };
 
@@ -155,10 +170,13 @@ function App() {
 
   useEffect(() => { refreshProfile(); }, [refreshProfile]);
 
-  const hasProfile = !!phone;
-  const profileData = profile || DEMO_PROFILE; // fallback demo data if backend is offline
+  // icons only appear once a FULL profile exists in the database
+  const hasProfile = !!(profile && profile.hasProfile);
+  const profileData = profile || DEMO_PROFILE;
 
   const navigate = (next) => { const path = pathMap[next] || '/'; window.history.pushState({}, '', path); setPage(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
+  const logout = () => { setPhone(''); setProfile(null); navigate('home'); };
 
   useEffect(() => { const onPop = () => setPage(routeMap[window.location.pathname] || 'home'); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop); }, []);
   useEffect(() => { document.title = `Nuji — ${page === 'home' ? 'Voices build the future' : page[0].toUpperCase() + page.slice(1)}`; }, [page]);
@@ -175,7 +193,7 @@ function App() {
         {page === 'listen' && <Listen language={language} setLanguage={setLanguage} phone={phone} refreshProfile={refreshProfile} />}
         {page === 'leaderboard' && <Leaderboard />}
         {page === 'state' && <StatePage navigate={navigate} />}
-        {page === 'profile' && <Profile navigate={navigate} profile={profileData} />}
+        {page === 'profile' && <Profile navigate={navigate} profile={profileData} onLogout={logout} />}
       </main>
       <Footer navigate={navigate} />
     </div>
@@ -255,7 +273,7 @@ function Home({ navigate, language, setLanguage }) {
       </div></div>
     </section>
 
-       <section className="section culture-section">
+    <section className="section culture-section">
       <div className="container culture-grid">
         <div className="culture-visual">
           <img className="photo-block photo-main" src={nuji10} alt="Everyday Nigerian market life"/>
@@ -428,12 +446,11 @@ function StatePage({ navigate }) {
   </section>;
 }
 
-function Profile({ navigate, profile }) {
+function Profile({ navigate, profile, onLogout }) {
   const [tab, setTab] = useState('overview');
   const overviewIconMap = { total: <BarChart3 size={20}/>, text: <Layers size={20}/>, voice: <Mic size={20}/>, both: <Award size={20}/>, mix: <MessageCircle size={20}/>, reviews: <Users size={20}/> };
   const overviewToneMap = { total: 'tone-green', text: 'tone-blue', voice: 'tone-purple', both: 'tone-gold', mix: 'tone-pink', reviews: 'tone-teal' };
 
-  // group flat badge list into categories
   const badgeCategories = [];
   for (const b of profile.badges) {
     let cat = badgeCategories.find(c => c.category === b.category);
@@ -451,6 +468,7 @@ function Profile({ navigate, profile }) {
             <span className="profile-avatar-large"><User size={26}/></span>
             <div><span className="profile-hero-label">Your progress</span><h1>{profile.nickname ? profile.nickname : 'My Profile'}</h1></div>
           </div>
+          <button className="btn btn-light logout-btn" onClick={onLogout}><LogOut size={16}/> Log out</button>
         </div>
         <div className="profile-pills">
           <span className="profile-pill"><Award size={14}/> {profile.points} pts</span>
@@ -503,7 +521,7 @@ function Profile({ navigate, profile }) {
             <span className="invite-stat-pill gold"><Award size={14}/> +{profile.referral.points} pts</span>
           </div>
           <button className="btn invite-whatsapp" onClick={() => {
-            const shareText = `🇳 Join me on Nuji! Let's build AI that understands our Nigerian languages. Use my link to start contributing: ${profile.referral.url}`;
+            const shareText = `🇳🇬 Join me on Nuji! Let's build AI that understands our Nigerian languages. Use my link to start contributing: ${profile.referral.url}`;
             window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank', 'noopener,noreferrer');
           }}><MessageCircle size={17}/> Share on WhatsApp</button>
           <button className="btn btn-primary invite-continue" onClick={() => navigate('contribute')}>Continue Contributing <ArrowRight size={17}/></button>
@@ -555,24 +573,43 @@ function Profile({ navigate, profile }) {
 function Join({ navigate, language, setLanguage, phone, setPhone, onSaved }) {
   const [step, setStep] = useState('phone');
   const [localPhone, setLocalPhone] = useState(phone);
+  const [phoneError, setPhoneError] = useState('');
+  const [returning, setReturning] = useState(false); // existing phone with a full profile
+  const [quick, setQuick] = useState({ state: '', age: '', gender: '' });
   const [profile, setProfile] = useState({ nickname:'', state:'', lga:'', age:'', gender:'', languages:[], contribution: language.name });
   const ref = useRef(new URLSearchParams(window.location.search).get('ref')).current;
   const update = (key, value) => setProfile(p => ({...p, [key]: value}));
   const updateState = (value) => setProfile(p => ({...p, state: value, lga: ''}));
   const toggleLanguage = (name) => setProfile(p => ({...p, languages: p.languages.includes(name) ? p.languages.filter(x => x !== name) : [...p.languages, name]}));
 
-  // 1) phone screen -> saves the phone as the login key
+  // 1) phone screen -> validates Nigerian number, checks if returning user
   const submitPhone = async (e) => {
     e.preventDefault();
-    setPhone(localPhone);
-    await api.checkPhone(localPhone);
+    const normalized = normalizeNaija(localPhone);
+    if (!validNaijaPhone(normalized)) {
+      setPhoneError('Enter a valid Nigerian number, e.g. 0803 123 4567');
+      return;
+    }
+    setPhoneError('');
+    setLocalPhone(normalized);
+    setPhone(normalized);
+    const res = await api.checkPhone(normalized);
+    setReturning(!!(res && res.hasProfile));
     setStep('choose');
   };
 
-  // 2) full profile -> stored in the backend
+  // 2) quick contribute -> three quick questions, then straight to Speak
+  const submitQuick = async (e) => {
+    e.preventDefault();
+    await api.saveProfile({ phone: localPhone || phone, state: quick.state, age: quick.age, gender: quick.gender, contribution: language.name, kind: 'quick' });
+    onSaved();
+    navigate('contribute');
+  };
+
+  // 3) full profile -> stored in the backend (new phones only)
   const submitProfile = async (e) => {
     e.preventDefault();
-    const saved = await api.saveProfile({ ...profile, phone: localPhone || phone, ref });
+    await api.saveProfile({ ...profile, phone: localPhone || phone, ref, kind: 'full' });
     setPhone(localPhone || phone);
     onSaved();
     navigate('profile');
@@ -588,19 +625,73 @@ function Join({ navigate, language, setLanguage, phone, setPhone, onSaved }) {
           <p>Choose how you'd like to get started today.</p>
         </div>
         <div className="entry-choice-grid">
-          <button className="entry-choice quick" onClick={() => navigate('contribute')}>
+          <button className="entry-choice quick" onClick={() => setStep('quick')}>
             <div className="choice-top"><span className="choice-icon"><Mic/></span><span className="choice-badge">Fastest</span></div>
             <h2>Quick Contribute</h2>
             <p>Just 3 quick questions — no account needed. Start contributing in under 30 seconds.</p>
             <span className="choice-action">Start now <ArrowRight size={17}/></span>
           </button>
-          <button className="entry-choice profile" onClick={() => setStep('profile')}>
-            <div className="choice-top"><span className="choice-icon"><Trophy/></span><span className="choice-badge">Track Points</span></div>
-            <h2>Create Profile</h2>
-            <p>Save your profile, earn points, and climb the leaderboard. Takes 2 minutes.</p>
-            <span className="choice-action">Set up profile <ArrowRight size={17}/></span>
-          </button>
+          {returning ? (
+            <button className="entry-choice profile" onClick={() => navigate('profile')}>
+              <div className="choice-top"><span className="choice-icon"><Trophy/></span><span className="choice-badge">Welcome back</span></div>
+              <h2>My Profile</h2>
+              <p>Continue where you stopped — see your points, badges and rank.</p>
+              <span className="choice-action">Go to my profile <ArrowRight size={17}/></span>
+            </button>
+          ) : (
+            <button className="entry-choice profile" onClick={() => setStep('profile')}>
+              <div className="choice-top"><span className="choice-icon"><Trophy/></span><span className="choice-badge">Track Points</span></div>
+              <h2>Create Profile</h2>
+              <p>Save your profile, earn points, and climb the leaderboard. Takes 2 minutes.</p>
+              <span className="choice-action">Set up profile <ArrowRight size={17}/></span>
+            </button>
+          )}
         </div>
+      </div>
+    </section>
+  );
+
+  if (step === 'quick') return (
+    <section className="join-page">
+      <div className="profile-container">
+        <button className="back-link" onClick={() => setStep('choose')}>← Back to options</button>
+        <div className="form-heading">
+          <div className="eyebrow">Quick contribute</div>
+          <h1>Three quick questions ⚡</h1>
+          <p>This helps us tag your contribution correctly.</p>
+        </div>
+        <form className="profile-form" onSubmit={submitQuick}>
+          <Field label="State of Origin *">
+            <select value={quick.state} onChange={e => setQuick(q => ({...q, state: e.target.value}))} required>
+              <option value="">Select your state</option>
+              {nigeriaStateNames.map(s => <option key={s}>{s}</option>)}
+            </select>
+          </Field>
+          <Field label="Age Range *">
+            <select value={quick.age} onChange={e => setQuick(q => ({...q, age: e.target.value}))} required>
+              <option value="">Select age range</option>
+              <option>18-25</option><option>26-35</option><option>36-50</option><option>50+</option>
+            </select>
+          </Field>
+          <Field label="Gender *">
+            <div className="gender-options">
+              {['Male','Female','Prefer not to say'].map(g => (
+                <label key={g}>
+                  <input type="radio" name="quick-gender" value={g} checked={quick.gender === g} onChange={e => setQuick(q => ({...q, gender: e.target.value}))} required/>
+                  <span>{g}</span>
+                </label>
+              ))}
+            </div>
+          </Field>
+          <p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p>
+          <Field label="Contributing in">
+            <select value={language.name} disabled>
+              {languages.map(l => <option key={l.name}>{l.name}</option>)}
+            </select>
+            <small>— selected on previous screen</small>
+          </Field>
+          <button className="btn btn-primary profile-submit" type="submit">Start Contributing Now <ArrowRight size={18}/></button>
+        </form>
       </div>
     </section>
   );
@@ -680,11 +771,12 @@ function Join({ navigate, language, setLanguage, phone, setPhone, onSaved }) {
       <div className="join-container phone-layout">
         <div className="phone-card">
           <div className="eyebrow">Contribute to Nuji</div>
-          <h1>Welcome back <span>👋</span></h1>
+          <h1>Welcome <span>👋</span></h1>
           <p>Enter your phone number to continue. New here? We'll set you up in seconds.</p>
           <form onSubmit={submitPhone}>
             <Field label="Phone Number">
-              <input value={localPhone} onChange={e => setLocalPhone(e.target.value)} placeholder="080 0000 0000" inputMode="tel" required/>
+              <input value={localPhone} onChange={e => { setLocalPhone(e.target.value); setPhoneError(''); }} placeholder="0803 123 4567" inputMode="tel" required/>
+              {phoneError && <small style={{color:'#c0392b',fontWeight:700}}>{phoneError}</small>}
             </Field>
             <button className="btn btn-primary phone-submit" type="submit">Continue <ArrowRight size={18}/></button>
           </form>
@@ -699,7 +791,7 @@ function Join({ navigate, language, setLanguage, phone, setPhone, onSaved }) {
             <Trust icon="🔒" title="No password" text="Just your phone number"/>
             <Trust icon="⚡" title="Instant access" text="Returning users skip setup"/>
             <Trust icon="🏆" title="Track points" text="See your rank & progress"/>
-            <Trust icon="🇳" title="Your data" text="Helping 200M+ Nigerians"/>
+            <Trust icon="🇳🇬" title="Your data" text="Helping 200M+ Nigerians"/>
           </div>
         </div>
       </div>
@@ -729,8 +821,16 @@ function Contribute({ language, setLanguage, phone, refreshProfile }) {
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [count, setCount] = useState(1);
   const [audioBlob, setAudioBlob] = useState(null);
+  const [promptText, setPromptText] = useState(language.sample);
   const recRef = useRef(null);
   const blobUrlRef = useRef(null);
+
+  // rotate a fresh prompt from the database for every sentence
+  useEffect(() => {
+    let on = true;
+    api.getPrompt(language.name, count).then(p => { if (on && p && p.text) setPromptText(p.text); });
+    return () => { on = false; };
+  }, [language.name, count]);
 
   useEffect(() => { if (recStage !== 'recording') return; const id = setInterval(() => setTime(t => t + 1), 1000); return () => clearInterval(id); }, [recStage]);
 
@@ -741,7 +841,6 @@ function Contribute({ language, setLanguage, phone, refreshProfile }) {
   const totalPoints = basePoints + mixBonus;
   const toggleLang = (name) => setSelectedLangs(l => l.includes(name) ? l.filter(x => x !== name) : [...l, name]);
 
-  // ---- real microphone recording (falls back to simulated if mic is blocked) ----
   const startRecording = async () => {
     setTime(0); setRecStage('recording'); setAudioBlob(null);
     try {
@@ -767,9 +866,8 @@ function Contribute({ language, setLanguage, phone, refreshProfile }) {
     } else setIsPlaying(!isPlaying);
   };
 
-  // ---- submit to the backend ----
   const submit = async () => {
-    const data = { phone: phone || undefined, language: language.name, text: textResponse, translation, langs: selectedLangs, formality, prompt: language.sample };
+    const data = { phone: phone || undefined, language: language.name, text: textResponse, translation, langs: selectedLangs, formality, prompt: promptText };
     let result = null;
     if (audioBlob) {
       const fd = new FormData();
@@ -808,7 +906,7 @@ function Contribute({ language, setLanguage, phone, refreshProfile }) {
 
         <div className="task-card contribute-card">
           <div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Sentence {count} of 10</span></div>
-          <div className="prompt-card"><span>Today's Prompt — {language.name}</span><p>“{language.sample}”</p></div>
+          <div className="prompt-card"><span>Today's Prompt — {language.name}</span><p>“{promptText}”</p></div>
           <div className="no-rules-note">
             <span className="no-rules-badge">No rules — just speak naturally</span>
             <p>Respond exactly how you'd say it to a close friend — one language, three languages, whatever comes out naturally. However it flows is exactly what we need.</p>
@@ -871,13 +969,17 @@ function Listen({ language, setLanguage, phone, refreshProfile }) {
   const [decision, setDecision] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [clip, setClip] = useState(null); // real clip from backend (has audio)
-  const [clipNum, setClipNum] = useState(4);
+  const [clipNum, setClipNum] = useState(1);
+  const [promptText, setPromptText] = useState(language.sample);
   const audioRef = useRef(null);
 
   useEffect(() => {
     setClip(null);
     api.pendingClip(language.name).then(c => setClip(c));
-  }, [language.name]);
+    let on = true;
+    api.getPrompt(language.name, clipNum).then(p => { if (on && p && p.text) setPromptText(p.text); });
+    return () => { on = false; };
+  }, [language.name, clipNum]);
 
   const togglePlay = () => {
     if (clip && clip.audioUrl) {
@@ -901,7 +1003,7 @@ function Listen({ language, setLanguage, phone, refreshProfile }) {
   return <section className="task-page listen-page"><div className="container task-layout">
     <aside className="task-aside"><div className="eyebrow ink">Listen</div><h1>Help keep every<br/><em>voice clear.</em></h1><p>Listen to a short recording, compare it to the sentence, and make a simple call.</p><div className="task-aside-card"><span>Reviewing in</span><LanguageSelect language={language} setLanguage={setLanguage}/><div className="mini-progress"><div><span>This session</span><b>{clipNum}/10 clips</b></div><div className="progress-track green-track"><i style={{width: `${clipNum*10}%`}}/></div></div></div></aside>
 
-    <div className="task-main"><div className="review-kicker"><span>Clip {clipNum} of 10</span><span>About 1 minute left</span></div><div className="task-card validation-card"><div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Community review</span></div>{!decision ? <><h2>Does this recording match?</h2><div className="listen-prompt"><span>The speaker should be saying</span><p>“{clip && clip.prompt ? clip.prompt : language.sample}”</p></div><div className="listen-player"><button className="listen-play" onClick={togglePlay} aria-label={playing ? 'Pause recording' : 'Play recording'}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><div className="player-wave">{Array.from({length:35},(_,i) => <b key={i} style={{height: `${9 + Math.abs(Math.sin(i*.55))*28}px`}}/>)}</div><span>00:12</span></div><p className="decision-label">Listen once, then choose what you heard.</p><div className="decision-grid"><button className="decision yes" onClick={() => decide('yes')}><span><Check size={21}/></span><div><b>Yes, it matches</b><small>The words are clear and correct</small></div></button><button className="decision no" onClick={() => decide('no')}><span><X size={20}/></span><div><b>No, it doesn’t match</b><small>The words are different or unclear</small></div></button></div><button className="skip-btn" onClick={next}>Skip this clip <SkipForward size={16}/></button></> : <><div className={`task-icon ${decision === 'yes' ? 'success' : 'neutral'}`}>{decision === 'yes' ? <Check size={29}/> : <X size={29}/>}</div><h2>{decision === 'yes' ? 'Thanks for confirming.' : 'Thanks for reviewing.'}</h2><p className="task-intro">Your review helps keep this collection useful for everyone who speaks {language.name}.</p><button className="btn btn-primary task-cta" onClick={next}>Next clip <ArrowRight size={18}/></button><button className="text-action centered" onClick={() => setDecision(null)}>Change answer</button></>}</div></div>
+    <div className="task-main"><div className="review-kicker"><span>Clip {clipNum} of 10</span><span>About 1 minute left</span></div><div className="task-card validation-card"><div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Community review</span></div>{!decision ? <><h2>Does this recording match?</h2><div className="listen-prompt"><span>The speaker should be saying</span><p>“{clip && clip.prompt ? clip.prompt : promptText}”</p></div><div className="listen-player"><button className="listen-play" onClick={togglePlay} aria-label={playing ? 'Pause recording' : 'Play recording'}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><div className="player-wave">{Array.from({length:35},(_,i) => <b key={i} style={{height: `${9 + Math.abs(Math.sin(i*.55))*28}px`}}/>)}</div><span>00:12</span></div><p className="decision-label">Listen once, then choose what you heard.</p><div className="decision-grid"><button className="decision yes" onClick={() => decide('yes')}><span><Check size={21}/></span><div><b>Yes, it matches</b><small>The words are clear and correct</small></div></button><button className="decision no" onClick={() => decide('no')}><span><X size={20}/></span><div><b>No, it doesn’t match</b><small>The words are different or unclear</small></div></button></div><button className="skip-btn" onClick={next}>Skip this clip <SkipForward size={16}/></button></> : <><div className={`task-icon ${decision === 'yes' ? 'success' : 'neutral'}`}>{decision === 'yes' ? <Check size={29}/> : <X size={29}/>}</div><h2>{decision === 'yes' ? 'Thanks for confirming.' : 'Thanks for reviewing.'}</h2><p className="task-intro">Your review helps keep this collection useful for everyone who speaks {language.name}.</p><button className="btn btn-primary task-cta" onClick={next}>Next clip <ArrowRight size={18}/></button><button className="text-action centered" onClick={() => setDecision(null)}>Change answer</button></>}</div></div>
   </div></section>;
 }
 
