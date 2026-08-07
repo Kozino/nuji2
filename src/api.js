@@ -4,9 +4,8 @@
 // to demo data when the backend is not running.
 // ============================================================
 
-// In development the Vite proxy forwards /api to localhost:4000.
-// In production set VITE_API_URL (e.g. https://nuji-api.onrender.com) on Vercel.
-const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
+// Development: Vite proxy → localhost:4000. Production: your Render backend.
+const BASE = (import.meta.env.VITE_API_URL || 'https://nuji2.onrender.com') + '/api';
 
 async function request(path, options = {}) {
   try {
