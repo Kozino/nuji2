@@ -977,7 +977,7 @@ function Listen({ language, setLanguage, phone, refreshProfile }) {
     setClip(null);
     api.pendingClip(language.name).then(c => setClip(c));
     let on = true;
-    api.getPrompt(language.name, clipNum).then(p => { if (on && p && p.text) setPromptText(p.text); });
+    (api.getPrompt ? api.getPrompt(language.name, clipNum) : Promise.resolve(null)).then(p => { if (on && p && p.text) setPromptText(p.text); });
     return () => { on = false; };
   }, [language.name, clipNum]);
 
