@@ -1,8 +1,7 @@
 // ============================================================
 // Nuji PRODUCTION backend — Supabase (Postgres + Storage)
-//
-//   Local test :  SUPABASE_URL=... SUPABASE_SERVICE_KEY=... npm run start:supabase
-//   Deploy     :  Render/Railway with the same two env vars
+//   Run locally : SUPABASE_URL=... SUPABASE_SERVICE_KEY=... npm run start:supabase
+//   Deploy      : Render with the same two env vars, start: npm run start:supabase
 // ============================================================
 import express from 'express';
 import cors from 'cors';
@@ -13,6 +12,7 @@ import {
   POINT_RULES, levelInfo, totalSubs, BADGES, earnedBadges,
   activityPayload, bumpDay, topLanguage, STATE_ZONES
 } from './db.js';
+import { getPrompt, allPrompts } from './prompts.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const app = express();
@@ -21,7 +21,14 @@ app.use(express.json({ limit: '2mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ---------------- helpers ----------------
-const normalizePhone = (p) => String(p || '').replace(/\s/g, '');
+// Accepts 0803..., +234803..., 234803..., strips spaces/dashes
+const normalizePhone = (p) => {
+  let d = String(p || '').replace(/[\s-]/g, '');
+  if (d.startsWith('+234')) d = '0' + d.slice(4);
+  else if (d.startsWith('234')) d = '0' + d.slice(3);
+  return d;
+};
+const validNaijaPhone = (p) => /^0(70|80|81|90|91|93)\d{8}$/.test(p);
 
 const blankUser = (phone) => ({
   phone, nickname: '', state: '', lga: '', age: '', gender: '', languages: [],
@@ -29,21 +36,24 @@ const blankUser = (phone) => ({
   refCode: 'NJ' + phone.replace(/\D/g, '').slice(-6),
   referredBy: null, referrals: 0, points: 0,
   subs: { text: 0, voice: 0, both: 0, mix: 0 }, langCounts: {},
-  reviews: 0, days: {}, streak: 0, bestStreak: 0, lastDay: null, earlyBird: false
+  reviews: 0, days: {}, streak: 0, bestStreak: 0, lastDay: null, earlyBird: false,
+  profileKind: null
 });
 
 const toUser = (r) => ({
   phone: r.phone, nickname: r.nickname, state: r.state, lga: r.lga, age: r.age, gender: r.gender,
   languages: r.languages, contributionLang: r.contribution_lang, refCode: r.ref_code, referredBy: r.referred_by,
   referrals: r.referrals, points: r.points, subs: r.subs, langCounts: r.lang_counts, reviews: r.reviews,
-  days: r.days, streak: r.streak, bestStreak: r.best_streak, lastDay: r.last_day, earlyBird: r.early_bird
+  days: r.days, streak: r.streak, bestStreak: r.best_streak, lastDay: r.last_day, earlyBird: r.early_bird,
+  profileKind: r.profile_kind
 });
 
 const toRow = (u) => ({
   phone: u.phone, nickname: u.nickname, state: u.state, lga: u.lga, age: u.age, gender: u.gender,
   languages: u.languages, contribution_lang: u.contributionLang, ref_code: u.refCode, referred_by: u.referredBy,
   referrals: u.referrals, points: u.points, subs: u.subs, lang_counts: u.langCounts, reviews: u.reviews,
-  days: u.days, streak: u.streak, best_streak: u.bestStreak, last_day: u.lastDay, early_bird: u.earlyBird
+  days: u.days, streak: u.streak, best_streak: u.bestStreak, last_day: u.lastDay, early_bird: u.earlyBird,
+  profile_kind: u.profileKind
 });
 
 async function getUser(phone) {
@@ -60,7 +70,6 @@ async function rankOf(phone) {
   return (count || 0) + 1;
 }
 
-// Same payload shape the frontend already understands
 async function profilePayload(user) {
   const act = activityPayload(user);
   const earned = earnedBadges(user);
@@ -69,6 +78,8 @@ async function profilePayload(user) {
     points: user.points, rank: await rankOf(user.phone),
     submissions: totalSubs(user), reviews: user.reviews,
     ...levelInfo(user.points), streak: user.streak,
+    profileKind: user.profileKind,
+    hasProfile: user.profileKind === 'full',
     overview: [
       { icon: 'total', number: totalSubs(user), label: 'Total' },
       { icon: 'text', number: user.subs.text, label: 'Text Only' },
@@ -95,22 +106,34 @@ async function profilePayload(user) {
 // ================= AUTH / PROFILE =================
 app.post('/api/auth/phone', async (req, res) => {
   const phone = normalizePhone(req.body.phone);
-  if (!phone) return res.status(400).json({ error: 'Phone required' });
+  if (!validNaijaPhone(phone)) return res.status(400).json({ error: 'Enter a valid Nigerian number, e.g. 0803 123 4567' });
   let user = await getUser(phone);
   const exists = !!user;
   if (!user) { user = blankUser(phone); await saveUser(user); }
-  res.json({ exists, phone: user.phone, hasProfile: !!user.state });
+  res.json({ exists, hasProfile: user.profileKind === 'full', phone: user.phone });
 });
 
+// kind: 'full' (create profile form) | 'quick' (quick-contribute questions)
 app.post('/api/profile', async (req, res) => {
   try {
-    const { phone, nickname, state, lga, age, gender, languages, contribution, ref } = req.body;
-    if (!phone) return res.status(400).json({ error: 'Phone required' });
-    let user = (await getUser(phone)) || blankUser(normalizePhone(phone));
+    const { phone, nickname, state, lga, age, gender, languages, contribution, ref, kind } = req.body;
+    const p = normalizePhone(phone);
+    if (!p) return res.status(400).json({ error: 'Phone required' });
+    let user = (await getUser(p)) || blankUser(p);
+
     Object.assign(user, {
-      nickname: nickname || '', state: state || '', lga: lga || '', age: age || '', gender: gender || '',
-      languages: languages || [], contributionLang: contribution || user.contributionLang
+      nickname: kind === 'full' ? (nickname || '') : user.nickname,
+      state: state || user.state,
+      lga: kind === 'full' ? (lga || '') : user.lga,
+      age: age || user.age,
+      gender: gender || user.gender,
+      languages: kind === 'full' ? (languages || []) : user.languages,
+      contributionLang: contribution || user.contributionLang
     });
+    // never downgrade a full profile to quick
+    if (kind === 'full') user.profileKind = 'full';
+    else if (!user.profileKind) user.profileKind = 'quick';
+
     if (ref && !user.referredBy) {
       const { data: refRow } = await supabase.from('users').select('*').eq('ref_code', ref).maybeSingle();
       if (refRow && refRow.phone !== user.phone) {
@@ -132,6 +155,18 @@ app.get('/api/profile/:phone', async (req, res) => {
   res.json(await profilePayload(user));
 });
 
+// ================= PROMPTS =================
+app.get('/api/prompts', async (req, res) => {
+  const language = req.query.language || 'Igbo';
+  const seed = parseInt(req.query.seed || '0', 10);
+  const { count } = await supabase.from('prompts').select('*', { count: 'exact', head: true }).eq('language', language);
+  if (count) {
+    const { data } = await supabase.from('prompts').select('text').eq('language', language).order('id').range(seed % count, seed % count);
+    if (data && data[0]) return res.json({ text: data[0].text, language });
+  }
+  res.json({ text: getPrompt(language, seed), language });
+});
+
 // ================= CONTRIBUTIONS =================
 app.post('/api/contributions', upload.single('audio'), async (req, res) => {
   try {
@@ -141,7 +176,6 @@ app.post('/api/contributions', upload.single('audio'), async (req, res) => {
     const hasVoice = !!req.file;
     if (!hasText && !hasVoice) return res.status(400).json({ error: 'Nothing to submit' });
 
-    // upload voice recording to Supabase Storage
     let audioUrl = null;
     if (req.file) {
       const path = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.webm`;
@@ -165,8 +199,8 @@ app.post('/api/contributions', upload.single('audio'), async (req, res) => {
     }
 
     const { data, error } = await supabase.from('contributions').insert({
-      phone: phone || null, language, prompt: prompt || '', text: text || '', translation: translation || '',
-      langs, formality: formality || 'Normal', audio_url: audioUrl, points: earned
+      phone: phone ? normalizePhone(phone) : null, language, prompt: prompt || '', text: text || '',
+      translation: translation || '', langs, formality: formality || 'Normal', audio_url: audioUrl, points: earned
     }).select().single();
     if (error) throw error;
 
@@ -190,7 +224,7 @@ app.post('/api/reviews', async (req, res) => {
     const { phone, clipId, decision } = req.body;
     const { data: clip } = await supabase.from('contributions').select('*').eq('id', clipId).maybeSingle();
     if (!clip) return res.status(404).json({ error: 'Clip not found' });
-    const reviews = [...(clip.reviews || []), { phone: phone || null, decision, at: new Date().toISOString() }];
+    const reviews = [...(clip.reviews || []), { phone: phone ? normalizePhone(phone) : null, decision, at: new Date().toISOString() }];
     await supabase.from('contributions').update({ reviews }).eq('id', clipId);
 
     let user = null;
@@ -226,5 +260,16 @@ app.get('/api/states', async (req, res) => {
   res.json(Object.values(agg));
 });
 
+// ---------------- start + auto-seed prompts ----------------
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, '0.0.0.0', () => console.log(`✅ Nuji API (Supabase) on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`✅ Nuji API (Supabase) on port ${PORT}`);
+  try {
+    const { count } = await supabase.from('prompts').select('*', { count: 'exact', head: true });
+    if (!count) {
+      const { error } = await supabase.from('prompts').insert(allPrompts());
+      if (error) console.log('prompt seed skipped:', error.message);
+      else console.log('🌱 Seeded prompt library');
+    }
+  } catch (e) { console.log('seed check failed:', e.message); }
+});
