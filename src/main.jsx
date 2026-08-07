@@ -147,8 +147,8 @@ const nigeriaStates = {
 const nigeriaStateNames = Object.keys(nigeriaStates);
 
 function App() {
-  const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/listen': 'listen', '/leaderboard': 'leaderboard', '/state': 'state', '/profile': 'profile' };
-  const pathMap = { home: '/', about: '/about', join: '/contribute', contribute: '/speak', listen: '/listen', leaderboard: '/leaderboard', state: '/state', profile: '/profile' };
+  const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/contribute': 'listen', '/leaderboard': 'leaderboard', '/state': 'state', '/profile': 'profile' };
+  const pathMap = { home: '/', about: '/about', join: '/contribute', contribute: '/speak', listen: '/contribute', leaderboard: '/leaderboard', state: '/state', profile: '/profile' };
   const [page, setPage] = useState(() => routeMap[window.location.pathname] || 'home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState(languages[0]);
@@ -201,7 +201,7 @@ function App() {
 }
 
 function Nav({ page, menuOpen, setMenuOpen, navigate, hasProfile, points }) {
-  const links = [['home', 'Home'], ['about', 'About'], ['join', 'Contribute'], ['listen', 'Listen'], ['leaderboard', 'Leaderboard'], ['state', 'State']];
+  const links = [['home', 'Home'], ['about', 'About'], ['join', 'Contribute'], ['join', 'Listen'], ['leaderboard', 'Leaderboard'], ['state', 'State']];
   return <>
     <header className="nav-wrap">
       <nav className="nav container" aria-label="Main navigation">
@@ -1036,7 +1036,7 @@ function Footer({navigate}) {
         {socials.map(s => <a key={s.label} href="#" aria-label={s.label}><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d={s.d}/></svg></a>)}
       </div>
     </div>
-    <div className="footer-links"><div><span>Explore</span><button onClick={() => navigate('join')}>Contribute</button><button onClick={() => navigate('listen')}>Listen</button><button onClick={() => navigate('leaderboard')}>Leaderboard</button><button onClick={() => navigate('state')}>State vs State</button></div><div><span>Languages</span><button>Igbo</button><button>Yoruba</button><button>Hausa</button><button>Pidgin</button></div></div>
+    <div className="footer-links"><div><span>Explore</span><button onClick={() => navigate('join')}>Contribute</button><button onClick={() => navigate('join')}>Listen</button><button onClick={() => navigate('leaderboard')}>Leaderboard</button><button onClick={() => navigate('state')}>State vs State</button></div><div><span>Languages</span><button>Igbo</button><button>Yoruba</button><button>Hausa</button><button>Pidgin</button></div></div>
   </div><div className="container footer-bottom"><span>© 2026 Nuji. Built for voices.</span><span>Open · Community-led · Nigerian</span></div></footer>;
 }
 
