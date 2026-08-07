@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowRight, Check, ChevronDown, CircleHelp, Headphones, LockKeyhole, Mail, Menu, Mic, Pause, Play, RotateCcw, SkipForward, Trophy, Volume2, X, User, Clock, Award, Send, Phone, Music, MessageCircle, MapPin, Flag, BarChart3, Users, Layers, Globe, Zap, Lock, Type } from "lucide-react";
+import { api } from './api.js';
 import './styles.css';
 
 const languages = [
@@ -10,7 +11,7 @@ const languages = [
   { name: 'Pidgin', native: 'Naija Pidgin', sample: 'How you dey today?', color: 'green' },
 ];
 
-const ranks = [
+const FALLBACK_RANKS = [
   ['Amina Yusuf', 'Hausa', '1,240'],
   ['Chiamaka Okoro', 'Igbo', '1,126'],
   ['Tunde Adeyemi', 'Yoruba', '978'],
@@ -18,8 +19,7 @@ const ranks = [
   ['Sani Garba', 'Hausa', '770'],
 ];
 
-// State data for the State vs State page
-const stateData = [
+const FALLBACK_STATES = [
   { name: 'Anambra', zone: 'South East', points: 6864, contributors: 1, submissions: 44 },
   { name: 'Borno', zone: 'North East', points: 22, contributors: 1, submissions: 2 },
   { name: 'Lagos', zone: 'South West', points: 154, contributors: 3, submissions: 12 },
@@ -34,81 +34,60 @@ const stateData = [
 
 const zones = ['All States', 'South East', 'South West', 'South South', 'North Central', 'North East', 'North West'];
 
-// Profile data — mirrors the contributor stats shown in the mobile app screenshots
-const pointsBreakdown = [
-  { label: 'Text only', count: 1, rate: 3 },
-  { label: 'Voice only', count: 0, rate: 2 },
-  { label: 'Text + Voice', count: 0, rate: 5 },
-];
-
-const referralStats = { url: 'https://nuji-next.vercel.app?ref=', joined: 0, points: 0 };
-
-const profileStats = { points: 153, rank: 1, submissions: 43, reviews: 9, level: 'Expert Contributor', levelProgress: 73, levelTarget: 100 };
-
-const overviewStats = [
-  { icon: 'total', number: 43, label: 'Total' },
-  { icon: 'text', number: 25, label: 'Text Only' },
-  { icon: 'voice', number: 4, label: 'Voice Only' },
-  { icon: 'both', number: 14, label: 'Text + Voice' },
-  { icon: 'mix', number: 3, label: 'Code-switched' },
-  { icon: 'reviews', number: 9, label: 'Reviews Done' },
-];
-
-// ===== GITHUB-STYLE CONTRIBUTION GRAPH DATA =====
-// Month labels shown across the top of the grid
-const activityMonths = ['S', 'O', 'N', 'D', 'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A'];
-// Your recent weeks of activity (kept from before)
-const recentWeeks = [0,1,0,0,0, 0,2,0,1,0, 0,1,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,1,0];
-// Full year = 53 weeks x 7 days = 371 cells, older weeks padded with 0
-const activityWeeks = [...Array(371 - recentWeeks.length).fill(0), ...recentWeeks];
-
-// Full badge catalogue, grouped the way the app presents "All Badges"
-const badgeCategories = [
-  { category: 'Getting Started', badges: [
-    { icon: '🎙️', name: 'First Voice', desc: 'Made your first contribution', earned: true },
-  ]},
-  { category: 'Volume', badges: [
-    { icon: '🔥', name: 'On Fire', desc: '10 contributions submitted', earned: true },
-    { icon: '💪', name: 'Dedicated', desc: '50 contributions submitted', earned: false },
-    { icon: '🏆', name: 'Champion', desc: '100 contributions submitted', earned: false },
-  ]},
-  { category: 'Voice', badges: [
-    { icon: '🎤', name: 'Voice Hero', desc: '20 voice recordings submitted', earned: false },
-  ]},
-  { category: 'Language', badges: [
-    { icon: '🦅', name: 'Igbo Pride', desc: '20 Igbo contributions', earned: false },
-    { icon: '⭐', name: 'Yoruba Star', desc: '20 Yoruba contributions', earned: false },
-    { icon: '🌙', name: 'Arewa Champion', desc: '20 Hausa contributions', earned: false },
-    { icon: '👑', name: 'Pidgin King', desc: '20 Pidgin contributions', earned: true },
-  ]},
-  { category: 'Code Switch', badges: [
-    { icon: '🔀', name: 'Language Mixer', desc: 'First code-switched submission', earned: true },
-    { icon: '🌍', name: 'Multilingual Master', desc: 'Code-switched in 3+ languages', earned: true },
-  ]},
-  { category: 'Streaks', badges: [
-    { icon: '📅', name: '7 Day Streak', desc: 'Contributed 7 days in a row', earned: false },
-    { icon: '⚔️', name: 'Two Week Warrior', desc: '14 day streak', earned: false },
-    { icon: '🌟', name: 'Monthly Legend', desc: 'Contributed 30 days in a row', earned: false },
-  ]},
-  { category: 'Community', badges: [
-    { icon: '👥', name: 'Reviewer', desc: 'Reviewed 10 submissions', earned: true },
-    { icon: '🧓', name: 'Elder', desc: 'Reviewed 50 submissions', earned: false },
-    { icon: '🤝', name: 'Village Champion', desc: 'Referred 5 contributors', earned: false },
-  ]},
-  { category: 'Points', badges: [
-    { icon: '⭐', name: 'Top Scorer', desc: 'Earned 100 points', earned: true },
-  ]},
-  { category: 'Special', badges: [
-    { icon: '🐦', name: 'Early Bird', desc: 'One of the first 100 contributors', earned: true },
-  ]},
-];
-
-const allBadgesFlat = badgeCategories.flatMap(c => c.badges);
-
-// Points earned per contribution type, shown on the contribute screen
 const pointRules = { text: 3, voice: 5, both: 8, mix: 3 };
 
-// Nigeria's 36 states + FCT, each with their Local Government Areas
+// Fallback badges (used only when the backend is unreachable)
+const FALLBACK_BADGES = [
+  { category: 'Getting Started', icon: '🎙️', name: 'First Voice', desc: 'Made your first contribution', earned: true },
+  { category: 'Volume', icon: '🔥', name: 'On Fire', desc: '10 contributions submitted', earned: true },
+  { category: 'Volume', icon: '💪', name: 'Dedicated', desc: '50 contributions submitted', earned: false },
+  { category: 'Volume', icon: '🏆', name: 'Champion', desc: '100 contributions submitted', earned: false },
+  { category: 'Voice', icon: '🎤', name: 'Voice Hero', desc: '20 voice recordings submitted', earned: false },
+  { category: 'Language', icon: '🦅', name: 'Igbo Pride', desc: '20 Igbo contributions', earned: false },
+  { category: 'Language', icon: '⭐', name: 'Yoruba Star', desc: '20 Yoruba contributions', earned: false },
+  { category: 'Language', icon: '🌙', name: 'Arewa Champion', desc: '20 Hausa contributions', earned: false },
+  { category: 'Language', icon: '👑', name: 'Pidgin King', desc: '20 Pidgin contributions', earned: true },
+  { category: 'Code Switch', icon: '🔀', name: 'Language Mixer', desc: 'First code-switched submission', earned: true },
+  { category: 'Code Switch', icon: '🌍', name: 'Multilingual Master', desc: 'Code-switched in 3+ languages', earned: true },
+  { category: 'Streaks', icon: '📅', name: '7 Day Streak', desc: 'Contributed 7 days in a row', earned: false },
+  { category: 'Streaks', icon: '⚔️', name: 'Two Week Warrior', desc: '14 day streak', earned: false },
+  { category: 'Streaks', icon: '🌟', name: 'Monthly Legend', desc: 'Contributed 30 days in a row', earned: false },
+  { category: 'Community', icon: '👥', name: 'Reviewer', desc: 'Reviewed 10 submissions', earned: true },
+  { category: 'Community', icon: '🧓', name: 'Elder', desc: 'Reviewed 50 submissions', earned: false },
+  { category: 'Community', icon: '🤝', name: 'Village Champion', desc: 'Referred 5 contributors', earned: false },
+  { category: 'Points', icon: '⭐', name: 'Top Scorer', desc: 'Earned 100 points', earned: true },
+  { category: 'Special', icon: '🐦', name: 'Early Bird', desc: 'One of the first 100 contributors', earned: true },
+];
+
+const recentWeeks = [0,1,0,0,0, 0,2,0,1,0, 0,1,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,1,0];
+
+// Demo profile shown when the backend is offline
+const DEMO_PROFILE = {
+  phone: '', nickname: '', state: 'Anambra', lga: '',
+  points: 153, rank: 1, submissions: 43, reviews: 9,
+  level: 'Expert Contributor', levelProgress: 73, levelTarget: 100, streak: 1,
+  overview: [
+    { icon: 'total', number: 43, label: 'Total' },
+    { icon: 'text', number: 25, label: 'Text Only' },
+    { icon: 'voice', number: 4, label: 'Voice Only' },
+    { icon: 'both', number: 14, label: 'Text + Voice' },
+    { icon: 'mix', number: 3, label: 'Code-switched' },
+    { icon: 'reviews', number: 9, label: 'Reviews Done' }
+  ],
+  breakdown: [
+    { label: 'Text only', count: 1, rate: 3 },
+    { label: 'Voice only', count: 0, rate: 2 },
+    { label: 'Text + Voice', count: 0, rate: 5 }
+  ],
+  activityCells: [...Array(371 - recentWeeks.length).fill(0), ...recentWeeks],
+  activityMonths: ['S', 'O', 'N', 'D', 'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A'],
+  badges: FALLBACK_BADGES,
+  badgesEarned: FALLBACK_BADGES.filter(b => b.earned).length,
+  badgesTotal: FALLBACK_BADGES.length,
+  referral: { url: 'https://nuji-next.vercel.app?ref=', joined: 0, points: 0 }
+};
+
+// Nigeria's 36 states + FCT with LGAs
 const nigeriaStates = {
   'Abia': ['Aba North','Aba South','Arochukwu','Bende','Ikwuano','Isiala Ngwa North','Isiala Ngwa South','Isuikwuato','Obi Ngwa','Ohafia','Osisioma','Ugwunagbo','Ukwa East','Ukwa West','Umuahia North','Umuahia South','Umu Nneochi'],
   'Adamawa': ['Demsa','Fufure','Ganye','Gayuk','Gombi','Grie','Hong','Jada','Lamurde','Madagali','Maiha','Mayo Belwa','Michika','Mubi North','Mubi South','Numan','Shelleng','Song','Toungo','Yola North','Yola South'],
@@ -158,48 +137,50 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState(languages[0]);
 
-  // Read from localStorage so it persists on page refresh
-  const [hasProfile, setHasProfile] = useState(() => {
-    try {
-      return localStorage.getItem('nuji_has_profile') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // ---- backend session: phone number is the login key ----
+  const [phone, setPhoneState] = useState(() => { try { return localStorage.getItem('nuji_phone') || ''; } catch { return ''; } });
+  const [profile, setProfile] = useState(null); // live data from the API
 
-  const updateHasProfile = (val) => {
-    setHasProfile(val);
-    try {
-      localStorage.setItem('nuji_has_profile', val ? 'true' : 'false');
-    } catch {}
+  const setPhone = (p) => {
+    try { p ? localStorage.setItem('nuji_phone', p) : localStorage.removeItem('nuji_phone'); } catch {}
+    setPhoneState(p);
   };
+
+  const refreshProfile = useCallback(() => {
+    if (!phone) { setProfile(null); return; }
+    api.getProfile(phone).then(p => setProfile(p));
+  }, [phone]);
+
+  useEffect(() => { refreshProfile(); }, [refreshProfile]);
+
+  const hasProfile = !!phone;
+  const profileData = profile || DEMO_PROFILE; // fallback demo data if backend is offline
 
   const navigate = (next) => { const path = pathMap[next] || '/'; window.history.pushState({}, '', path); setPage(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   useEffect(() => { const onPop = () => setPage(routeMap[window.location.pathname] || 'home'); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop); }, []);
-
   useEffect(() => { document.title = `Nuji — ${page === 'home' ? 'Voices build the future' : page[0].toUpperCase() + page.slice(1)}`; }, [page]);
 
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">Skip to main content</a>
-      <Nav page={page} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} hasProfile={hasProfile} />
+      <Nav page={page} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} hasProfile={hasProfile} points={profileData.points} />
       <main id="main">
         {page === 'home' && <Home navigate={navigate} language={language} setLanguage={setLanguage} />}
         {page === 'about' && <About navigate={navigate} />}
-        {page === 'join' && <Join navigate={navigate} language={language} setLanguage={setLanguage} setHasProfile={updateHasProfile} />}
-        {page === 'contribute' && <Contribute language={language} setLanguage={setLanguage} />}
-        {page === 'listen' && <Listen language={language} setLanguage={setLanguage} />}
+        {page === 'join' && <Join navigate={navigate} language={language} setLanguage={setLanguage} phone={phone} setPhone={setPhone} onSaved={refreshProfile} />}
+        {page === 'contribute' && <Contribute language={language} setLanguage={setLanguage} phone={phone} refreshProfile={refreshProfile} />}
+        {page === 'listen' && <Listen language={language} setLanguage={setLanguage} phone={phone} refreshProfile={refreshProfile} />}
         {page === 'leaderboard' && <Leaderboard />}
         {page === 'state' && <StatePage navigate={navigate} />}
-        {page === 'profile' && <Profile navigate={navigate} />}
+        {page === 'profile' && <Profile navigate={navigate} profile={profileData} />}
       </main>
       <Footer navigate={navigate} />
     </div>
   );
 }
 
-function Nav({ page, menuOpen, setMenuOpen, navigate, hasProfile }) {
+function Nav({ page, menuOpen, setMenuOpen, navigate, hasProfile, points }) {
   const links = [['home', 'Home'], ['about', 'About'], ['join', 'Contribute'], ['listen', 'Listen'], ['leaderboard', 'Leaderboard'], ['state', 'State']];
   return <>
     <header className="nav-wrap">
@@ -210,7 +191,7 @@ function Nav({ page, menuOpen, setMenuOpen, navigate, hasProfile }) {
         </div>
         <div className="nav-actions">
           <button className="language-nav"><span className="dot"/> Igbo <ChevronDown size={16}/></button>
-          {hasProfile && <button className="points-pill" onClick={() => navigate('profile')} aria-label="View points"><Award size={14}/> 153</button>}
+          {hasProfile && <button className="points-pill" onClick={() => navigate('profile')} aria-label="View points"><Award size={14}/> {points}</button>}
           <button className="btn btn-primary nav-cta" onClick={() => navigate('join')}>Contribute <ArrowRight size={16}/></button>
           {hasProfile && <button className={page === 'profile' ? 'profile-avatar active' : 'profile-avatar'} onClick={() => navigate('profile')} aria-label="My profile"><User size={17}/></button>}
           <button className="menu-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={23}/></button>
@@ -288,44 +269,28 @@ function About({ navigate }) {
     'Only your state and age range are collected — no personal details',
     'The resulting AI models will be open and accessible to all Nigerians'
   ];
-
   const steps = [
     ['01', 'You contribute', 'You respond to everyday prompts in your natural language — Igbo, Yoruba, Hausa, Pidgin, or any mix. Speak, type, or both.'],
     ['02', 'Community verifies', 'Other contributors listen and verify your recording sounds natural. This peer review ensures high quality data.'],
     ['03', 'Data trains AI', 'Verified contributions are used to fine-tune language models that understand real Nigerian speech — not textbook language.']
   ];
-
   return (
     <section className="about-page">
       <section className="about-hero wave-bg">
         <div className="container about-hero-grid">
           <div>
             <div className="eyebrow">About Nuji</div>
-            <h1>
-              Technology that speaks<br />
-              <em>your language.</em>
-            </h1>
-            <p>
-              Why should AI only work for a few of the world's languages? Our
-              language is our story, our community, our culture. Nuji is building
-              the datasets we want to see in the world.
-            </p>
-            <button className="btn btn-primary" onClick={() => navigate('join')}>
-              Start contributing <ArrowRight size={18} />
-            </button>
+            <h1>Technology that speaks<br /><em>your language.</em></h1>
+            <p>Why should AI only work for a few of the world's languages? Our language is our story, our community, our culture. Nuji is building the datasets we want to see in the world.</p>
+            <button className="btn btn-primary" onClick={() => navigate('join')}>Start contributing <ArrowRight size={18} /></button>
           </div>
-
           <div className="about-mark">
             <div className="market-woman-svg">
-              <img
-                src="/assets/nuji12.png"
-                alt="Nuji marketplace illustration"
-              />
+              <img src="/assets/nuji12.png" alt="Nuji marketplace illustration" />
             </div>
           </div>
         </div>
       </section>
-
       <section className="section">
         <div className="container reading-section">
           <div className="eyebrow ink">The problem</div>
@@ -336,65 +301,33 @@ function About({ navigate }) {
           </div>
         </div>
       </section>
-
       <section className="section how-section">
         <div className="container">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">How it works</div>
-              <h2>Built by voices.<br />Checked by community.</h2>
-            </div>
-          </div>
+          <div className="section-heading"><div><div className="eyebrow">How it works</div><h2>Built by voices.<br />Checked by community.</h2></div></div>
           <div className="how-grid">
-            {steps.map(([n, title, text]) => (
-              <article key={n}>
-                <span>{n}</span>
-                <h3>{title}</h3>
-                <p>{text}</p>
-              </article>
-            ))}
+            {steps.map(([n, title, text]) => (<article key={n}><span>{n}</span><h3>{title}</h3><p>{text}</p></article>))}
           </div>
         </div>
       </section>
-
       <section className="section">
         <div className="container">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow ink">The languages</div>
-              <h2>Starting at home.<br /><em>Growing from there.</em></h2>
-            </div>
-            <p>We're starting with Nigeria's four most widely spoken languages — and expanding from there.</p>
-          </div>
+          <div className="section-heading"><div><div className="eyebrow ink">The languages</div><h2>Starting at home.<br /><em>Growing from there.</em></h2></div><p>We're starting with Nigeria's four most widely spoken languages — and expanding from there.</p></div>
           <div className="about-language-grid">
             {languages.map(l => (
               <div className={`about-language ${l.color}`} key={l.name}>
                 <b>{l.name}</b>
-                <span>
-                  {l.name === 'Igbo' ? '44M+' : l.name === 'Yoruba' ? '45M+' : l.name === 'Hausa' ? '63M+' : '75M+'} speakers
-                </span>
+                <span>{l.name === 'Igbo' ? '44M+' : l.name === 'Yoruba' ? '45M+' : l.name === 'Hausa' ? '63M+' : '75M+'} speakers</span>
               </div>
             ))}
           </div>
         </div>
       </section>
-
       <section className="section data-section">
         <div className="container data-grid">
-          <div>
-            <div className="eyebrow">Your data, used responsibly</div>
-            <h2>Good data begins with <em>trust.</em></h2>
-          </div>
-          <ul>
-            {privacy.map(item => (
-              <li key={item}>
-                <span><Check size={16} /></span>{item}
-              </li>
-            ))}
-          </ul>
+          <div><div className="eyebrow">Your data, used responsibly</div><h2>Good data begins with <em>trust.</em></h2></div>
+          <ul>{privacy.map(item => (<li key={item}><span><Check size={16} /></span>{item}</li>))}</ul>
         </div>
       </section>
-
       <section className="section founder-section">
         <div className="container founder-card">
           <div className="founder-seal">N</div>
@@ -405,7 +338,6 @@ function About({ navigate }) {
           </div>
         </div>
       </section>
-
       <section className="final-cta">
         <div className="container final-inner">
           <div>
@@ -413,25 +345,23 @@ function About({ navigate }) {
             <h2>Every voice brings<br />us one step closer.</h2>
             <p>Every sentence you speak or type brings Nigerian language AI one step closer to reality.</p>
           </div>
-          <button className="btn btn-light" onClick={() => navigate('join')}>
-            Start Contributing <ArrowRight size={18} />
-          </button>
+          <button className="btn btn-light" onClick={() => navigate('join')}>Start Contributing <ArrowRight size={18} /></button>
         </div>
-        <p className="about-signoff">Built for the people. Powered by their voice. 🇳</p>
+        <p className="about-signoff">Built for the people. Powered by their voice. 🇳🇬</p>
       </section>
     </section>
   );
 }
 
-// State vs State Page
 function StatePage({ navigate }) {
   const [selectedZone, setSelectedZone] = useState('All States');
   const [selectedView, setSelectedView] = useState('states');
+  const [data, setData] = useState(null);
 
-  const filteredStates = selectedZone === 'All States'
-    ? stateData
-    : stateData.filter(s => s.zone === selectedZone);
+  useEffect(() => { api.states().then(d => { if (d && d.length) setData(d); }); }, []);
+  const stateData = data || FALLBACK_STATES;
 
+  const filteredStates = selectedZone === 'All States' ? stateData : stateData.filter(s => s.zone === selectedZone);
   const sortedStates = [...filteredStates].sort((a, b) => b.points - a.points);
   const topState = sortedStates[0];
 
@@ -444,14 +374,10 @@ function StatePage({ navigate }) {
           <p className="state-subtitle">Which state is building Nigerian language AI the hardest? 🇳🇬</p>
         </div>
       </div>
-
       {topState && (
         <div className="leading-state-card">
           <div className="leading-state-content">
-            <div className="leading-state-header">
-              <span className="trophy-icon">🥇</span>
-              <span className="leading-label">Leading State</span>
-            </div>
+            <div className="leading-state-header"><span className="trophy-icon">🥇</span><span className="leading-label">Leading State</span></div>
             <div className="leading-state-name">{topState.name}</div>
             <div className="leading-state-stats">
               <div className="leading-stat"><span className="stat-number">{topState.points.toLocaleString()}</span><span className="stat-label">points</span></div>
@@ -462,30 +388,17 @@ function StatePage({ navigate }) {
           </div>
         </div>
       )}
-
       <div className="state-controls">
         <div className="view-tabs">
           <button className={selectedView === 'states' ? 'view-tab active' : 'view-tab'} onClick={() => setSelectedView('states')}>By states</button>
           <button className={selectedView === 'zones' ? 'view-tab active' : 'view-tab'} onClick={() => setSelectedView('zones')}>By zones</button>
         </div>
         <div className="zone-filters">
-          {zones.map(zone => (
-            <button key={zone} className={selectedZone === zone ? 'zone-filter active' : 'zone-filter'} onClick={() => setSelectedZone(zone)}>
-              {zone}
-            </button>
-          ))}
+          {zones.map(zone => (<button key={zone} className={selectedZone === zone ? 'zone-filter active' : 'zone-filter'} onClick={() => setSelectedZone(zone)}>{zone}</button>))}
         </div>
       </div>
-
       <div className="state-leaderboard">
-        <div className="state-rank-head">
-          <span>Rank</span>
-          <span>State</span>
-          <span>Zone</span>
-          <span>Contributors</span>
-          <span>Submissions</span>
-          <span>Points</span>
-        </div>
+        <div className="state-rank-head"><span>Rank</span><span>State</span><span>Zone</span><span>Contributors</span><span>Submissions</span><span>Points</span></div>
         {sortedStates.map((state, index) => (
           <div key={state.name} className={`state-rank-row ${index < 3 ? 'top-rank' : ''}`}>
             <span className="state-rank-num">{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}</span>
@@ -501,13 +414,18 @@ function StatePage({ navigate }) {
   </section>;
 }
 
-// Profile page — contributor stats, activity, and badges
-function Profile({ navigate }) {
+function Profile({ navigate, profile }) {
   const [tab, setTab] = useState('overview');
   const overviewIconMap = { total: <BarChart3 size={20}/>, text: <Layers size={20}/>, voice: <Mic size={20}/>, both: <Award size={20}/>, mix: <MessageCircle size={20}/>, reviews: <Users size={20}/> };
   const overviewToneMap = { total: 'tone-green', text: 'tone-blue', voice: 'tone-purple', both: 'tone-gold', mix: 'tone-pink', reviews: 'tone-teal' };
-  const badgesEarned = allBadgesFlat.filter(b => b.earned).length;
-  const badgesTotal = allBadgesFlat.length;
+
+  // group flat badge list into categories
+  const badgeCategories = [];
+  for (const b of profile.badges) {
+    let cat = badgeCategories.find(c => c.category === b.category);
+    if (!cat) { cat = { category: b.category, badges: [] }; badgeCategories.push(cat); }
+    cat.badges.push(b);
+  }
 
   return <section className="profile-page wave-bg slim-wave">
     <div className="container">
@@ -517,69 +435,63 @@ function Profile({ navigate }) {
         <div className="profile-hero-top">
           <div className="profile-hero-id">
             <span className="profile-avatar-large"><User size={26}/></span>
-            <div><span className="profile-hero-label">Your progress</span><h1>My Profile</h1></div>
+            <div><span className="profile-hero-label">Your progress</span><h1>{profile.nickname ? profile.nickname : 'My Profile'}</h1></div>
           </div>
         </div>
         <div className="profile-pills">
-          <span className="profile-pill"><Award size={14}/> {profileStats.points} pts</span>
-          <span className="profile-pill"><Trophy size={14}/> #{profileStats.rank} rank</span>
-          <span className="profile-pill"><Mic size={14}/> {profileStats.submissions} submissions</span>
-          <span className="profile-pill"><Users size={14}/> {profileStats.reviews} reviews</span>
+          <span className="profile-pill"><Award size={14}/> {profile.points} pts</span>
+          <span className="profile-pill"><Trophy size={14}/> #{profile.rank} rank</span>
+          <span className="profile-pill"><Mic size={14}/> {profile.submissions} submissions</span>
+          <span className="profile-pill"><Users size={14}/> {profile.reviews} reviews</span>
         </div>
       </div>
 
       <div className="profile-level-card">
         <span className="profile-level-icon"><Award size={22}/></span>
         <div className="profile-level-body">
-          <div className="profile-level-row"><b>{profileStats.level}</b><span>{profileStats.levelProgress}/{profileStats.levelTarget}</span></div>
-          <div className="progress-track green-track"><i style={{width: `${(profileStats.levelProgress/profileStats.levelTarget)*100}%`}}/></div>
+          <div className="profile-level-row"><b>{profile.level}</b><span>{profile.levelProgress}/{profile.levelTarget}</span></div>
+          <div className="progress-track green-track"><i style={{width: `${Math.min(100, (profile.levelProgress/profile.levelTarget)*100)}%`}}/></div>
         </div>
       </div>
 
       <div className="profile-tabs">
         <button className={tab==='overview'?'profile-tab active':'profile-tab'} onClick={() => setTab('overview')}>Overview</button>
         <button className={tab==='activity'?'profile-tab active':'profile-tab'} onClick={() => setTab('activity')}>Activity</button>
-        <button className={tab==='badges'?'profile-tab active':'profile-tab'} onClick={() => setTab('badges')}>Badges ({badgesEarned})</button>
+        <button className={tab==='badges'?'profile-tab active':'profile-tab'} onClick={() => setTab('badges')}>Badges ({profile.badgesEarned})</button>
       </div>
 
       {tab === 'overview' && <div className="profile-panel">
         <div className="overview-grid">
-          {overviewStats.map(s => <div className={`overview-card ${overviewToneMap[s.icon]}`} key={s.label}><span className="overview-icon">{overviewIconMap[s.icon]}</span><strong>{s.number}</strong><span>{s.label}</span></div>)}
+          {profile.overview.map(s => <div className={`overview-card ${overviewToneMap[s.icon]}`} key={s.label}><span className="overview-icon">{overviewIconMap[s.icon]}</span><strong>{s.number}</strong><span>{s.label}</span></div>)}
         </div>
 
         <div className="points-breakdown-card">
           <h3>Points Breakdown</h3>
           <div className="breakdown-rows">
-            {pointsBreakdown.map(row => <div className="breakdown-row" key={row.label}>
+            {profile.breakdown.map(row => <div className="breakdown-row" key={row.label}>
               <span className="breakdown-label">{row.label}</span>
               <span className="breakdown-calc">{row.count} × {row.rate}pts</span>
               <span className="breakdown-pts">{row.count * row.rate} pts</span>
             </div>)}
           </div>
-          <div className="breakdown-total-row"><span>Total</span><strong>{pointsBreakdown.reduce((s,r) => s + r.count * r.rate, 0)} pts</strong></div>
+          <div className="breakdown-total-row"><span>Total</span><strong>{profile.breakdown.reduce((s,r) => s + r.count * r.rate, 0)} pts</strong></div>
         </div>
 
         <div className="invite-card">
           <h3>🤝 Invite Friends</h3>
           <p>Earn <strong>+10 points</strong> for every person who joins!</p>
           <div className="invite-link-row">
-            <span className="invite-link">{referralStats.url}</span>
-            <button className="invite-copy-btn" onClick={() => navigator.clipboard?.writeText(referralStats.url)}>Copy</button>
+            <span className="invite-link">{profile.referral.url}</span>
+            <button className="invite-copy-btn" onClick={() => navigator.clipboard?.writeText(profile.referral.url)}>Copy</button>
           </div>
           <div className="invite-stats-row">
-            <span className="invite-stat-pill"><Users size={14}/> {referralStats.joined} joined</span>
-            <span className="invite-stat-pill gold"><Award size={14}/> +{referralStats.points} pts</span>
+            <span className="invite-stat-pill"><Users size={14}/> {profile.referral.joined} joined</span>
+            <span className="invite-stat-pill gold"><Award size={14}/> +{profile.referral.points} pts</span>
           </div>
-          <button
-            className="btn invite-whatsapp"
-            onClick={() => {
-              const shareText = `🇳🇬 Join me on Nuji! Let's build AI that understands our Nigerian languages. Use my link to start contributing: ${referralStats.url}`;
-              const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-              window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-            }}
-          >
-            <MessageCircle size={17}/> Share on WhatsApp
-          </button>
+          <button className="btn invite-whatsapp" onClick={() => {
+            const shareText = `🇳 Join me on Nuji! Let's build AI that understands our Nigerian languages. Use my link to start contributing: ${profile.referral.url}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank', 'noopener,noreferrer');
+          }}><MessageCircle size={17}/> Share on WhatsApp</button>
           <button className="btn btn-primary invite-continue" onClick={() => navigate('contribute')}>Continue Contributing <ArrowRight size={17}/></button>
         </div>
       </div>}
@@ -587,34 +499,28 @@ function Profile({ navigate }) {
       {tab === 'activity' && <div className="profile-panel">
         <div className="activity-card">
           <h3>Contribution Activity</h3>
-          <p className="activity-sub">{profileStats.submissions} contributions in the last year</p>
-
-          <div className="activity-months">
-            {activityMonths.map((m, i) => <span key={i}>{m}</span>)}
-          </div>
-
+          <p className="activity-sub">{profile.submissions} contributions in the last year</p>
+          <div className="activity-months">{profile.activityMonths.map((m, i) => <span key={i}>{m}</span>)}</div>
           <div className="activity-scroll">
             <div className="activity-cells">
-              {activityWeeks.map((level, i) => <span key={i} className={`activity-cell level-${level}`}/>)}
+              {profile.activityCells.map((level, i) => <span key={i} className={`activity-cell level-${level}`}/>)}
             </div>
           </div>
-
           <div className="activity-legend">
             <span>Less</span>
             <i className="level-0"/><i className="level-1"/><i className="level-2"/><i className="level-3"/><i className="level-4"/>
             <span>More</span>
           </div>
         </div>
-
-        <div className="streak-card"><span className="streak-icon">🔥</span><div><b>1 day streak!</b><small>Keep contributing daily to maintain your streak</small></div></div>
+        <div className="streak-card"><span className="streak-icon">🔥</span><div><b>{profile.streak} day streak!</b><small>Keep contributing daily to maintain your streak</small></div></div>
       </div>}
 
       {tab === 'badges' && <div className="profile-panel">
         <div className="badges-head">
-          <div><h3>All Badges</h3><p className="activity-sub">{badgesEarned} of {badgesTotal} earned</p></div>
-          <span className="badges-percent">{Math.round((badgesEarned/badgesTotal)*100)}%</span>
+          <div><h3>All Badges</h3><p className="activity-sub">{profile.badgesEarned} of {profile.badgesTotal} earned</p></div>
+          <span className="badges-percent">{Math.round((profile.badgesEarned/profile.badgesTotal)*100)}%</span>
         </div>
-        <div className="progress-track green-track"><i style={{width: `${(badgesEarned/badgesTotal)*100}%`}}/></div>
+        <div className="progress-track green-track"><i style={{width: `${(profile.badgesEarned/profile.badgesTotal)*100}%`}}/></div>
         <div className="badge-categories">
           {badgeCategories.map(cat => <div className="badge-category" key={cat.category}>
             <h4>{cat.category}</h4>
@@ -632,18 +538,31 @@ function Profile({ navigate }) {
   </section>;
 }
 
-function Admin() {
-  const [showPassword, setShowPassword] = useState(false);
-  return <section className="admin-page"><div className="admin-shell"><div className="admin-aside"><img src="/assets/nuji-logo.png" alt="Nuji"/><div><div className="eyebrow">Nuji operations</div><h1>Keep every voice<br/><em>moving forward.</em></h1><p>Secure access for Nuji dataset administrators and community operations teams.</p></div><span>© 2026 Nuji · Internal platform</span></div><div className="admin-login"><div className="admin-mobile-logo"><img src="/assets/nuji-logo.png" alt="Nuji"/></div><div className="admin-copy"><div className="eyebrow ink">Admin portal</div><h2>Welcome back.</h2><p>Sign in to manage contributions and community quality.</p></div><form onSubmit={e => e.preventDefault()}><Field label="Work email"><span className="input-icon"><Mail size={18}/><input type="email" placeholder="you@nuji.ng" required/></span></Field><Field label="Password"><span className="input-icon"><LockKeyhole size={18}/><input type={showPassword ? 'text' : 'password'} placeholder="Enter your password" required/><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></span></Field><div className="admin-options"><label><input type="checkbox"/> Remember me</label><button type="button">Forgot password?</button></div><button type="submit" className="btn btn-primary admin-submit">Sign in to admin <ArrowRight size={17}/></button></form><div className="admin-security"><LockKeyhole size={15}/><span>Protected access · Authorized Nuji team members only</span></div></div></div></section>;
-}
-
-function Join({ navigate, language, setLanguage, setHasProfile }) {
+function Join({ navigate, language, setLanguage, phone, setPhone, onSaved }) {
   const [step, setStep] = useState('phone');
-  const [phone, setPhone] = useState('');
+  const [localPhone, setLocalPhone] = useState(phone);
   const [profile, setProfile] = useState({ nickname:'', state:'', lga:'', age:'', gender:'', languages:[], contribution: language.name });
+  const ref = useRef(new URLSearchParams(window.location.search).get('ref')).current;
   const update = (key, value) => setProfile(p => ({...p, [key]: value}));
   const updateState = (value) => setProfile(p => ({...p, state: value, lga: ''}));
   const toggleLanguage = (name) => setProfile(p => ({...p, languages: p.languages.includes(name) ? p.languages.filter(x => x !== name) : [...p.languages, name]}));
+
+  // 1) phone screen -> saves the phone as the login key
+  const submitPhone = async (e) => {
+    e.preventDefault();
+    setPhone(localPhone);
+    await api.checkPhone(localPhone);
+    setStep('choose');
+  };
+
+  // 2) full profile -> stored in the backend
+  const submitProfile = async (e) => {
+    e.preventDefault();
+    const saved = await api.saveProfile({ ...profile, phone: localPhone || phone, ref });
+    setPhone(localPhone || phone);
+    onSaved();
+    navigate('profile');
+  };
 
   if (step === 'choose') return (
     <section className="join-page">
@@ -681,7 +600,7 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
           <h1>Tell us about <em>yourself.</em></h1>
           <p>This helps tag your dialect correctly — making your data more valuable.</p>
         </div>
-        <form className="profile-form" onSubmit={e => {e.preventDefault(); setHasProfile(true); navigate('profile')}}>
+        <form className="profile-form" onSubmit={submitProfile}>
           <Field label="Nickname (optional)">
             <input value={profile.nickname} onChange={e => update('nickname', e.target.value)} placeholder="e.g. Chukwuemeka or stay anonymous"/>
           </Field>
@@ -703,10 +622,7 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
             <Field label="Age Range *">
               <select value={profile.age} onChange={e => update('age', e.target.value)} required>
                 <option value="">Select age range</option>
-                <option>18–24</option>
-                <option>25–34</option>
-                <option>35–44</option>
-                <option>45+</option>
+                <option>18–24</option><option>25–34</option><option>35–44</option><option>45+</option>
               </select>
             </Field>
             <Field label="Gender *">
@@ -719,7 +635,7 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
               </div>
             </Field>
           </div>
-          <p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳</p>
+          <p className="form-note">Helps ensure our dataset represents all Nigerians equally 🇳🇬</p>
           <Field label="Languages spoken at home *">
             <div className="checkbox-grid">
               {languages.map(l =>
@@ -730,12 +646,12 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
             </div>
           </Field>
           <Field label="Contributing today in *">
-            <select value={profile.contribution} onChange={e => {update('contribution', e.target.value); setLanguage(languages.find(l => l.name === e.target.value))}} required>
+            <select value={profile.contribution} onChange={e => {update('contribution', e.target.value); setLanguage(languages.find(l => l.name === e.target.value));}} required>
               {languages.map(l => <option key={l.name}>{l.name}</option>)}
             </select>
           </Field>
           <Field label="Phone number">
-            <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="02200000" inputMode="tel"/>
+            <input value={localPhone} onChange={e => setLocalPhone(e.target.value)} placeholder="080 0000 0000" inputMode="tel"/>
             <small>Used to recognise you on future visits. No OTP needed.</small>
           </Field>
           <button className="btn btn-primary profile-submit" type="submit">Create Profile & Start <ArrowRight size={18}/></button>
@@ -745,7 +661,6 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
     </section>
   );
 
-  // Initial phone number screen
   return (
     <section className="join-page">
       <div className="join-container phone-layout">
@@ -753,18 +668,15 @@ function Join({ navigate, language, setLanguage, setHasProfile }) {
           <div className="eyebrow">Contribute to Nuji</div>
           <h1>Welcome back <span>👋</span></h1>
           <p>Enter your phone number to continue. New here? We'll set you up in seconds.</p>
-          <form onSubmit={e => {e.preventDefault(); setHasProfile(true); setStep('choose');}}>
+          <form onSubmit={submitPhone}>
             <Field label="Phone Number">
-              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="080 0000 0000" inputMode="tel" required/>
+              <input value={localPhone} onChange={e => setLocalPhone(e.target.value)} placeholder="080 0000 0000" inputMode="tel" required/>
             </Field>
             <button className="btn btn-primary phone-submit" type="submit">Continue <ArrowRight size={18}/></button>
           </form>
           <div className="phone-key">
             <span>🔑</span>
-            <div>
-              <b>Your phone number is your key</b>
-              <small>No password, no long process.</small>
-            </div>
+            <div><b>Your phone number is your key</b><small>No password, no long process.</small></div>
           </div>
         </div>
         <div className="trust-panel">
@@ -789,10 +701,9 @@ const exampleResponses = [
   "Biko come help me carry this thing, my body no fit again — agwụọla m ike!",
   "Oya let's go! Time waits for no one — anyị gaghị abia oge!",
 ];
-
 const formalityLevels = ['Very Casual', 'Normal', 'Formal'];
 
-function Contribute({ language, setLanguage }) {
+function Contribute({ language, setLanguage, phone, refreshProfile }) {
   const [textResponse, setTextResponse] = useState('');
   const [recStage, setRecStage] = useState('idle'); // idle | recording | recorded
   const [time, setTime] = useState(0);
@@ -803,6 +714,9 @@ function Contribute({ language, setLanguage }) {
   const [submitted, setSubmitted] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [count, setCount] = useState(1);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const recRef = useRef(null);
+  const blobUrlRef = useRef(null);
 
   useEffect(() => { if (recStage !== 'recording') return; const id = setInterval(() => setTime(t => t + 1), 1000); return () => clearInterval(id); }, [recStage]);
 
@@ -812,15 +726,54 @@ function Contribute({ language, setLanguage }) {
   const mixBonus = selectedLangs.length >= 2 ? pointRules.mix : 0;
   const totalPoints = basePoints + mixBonus;
   const toggleLang = (name) => setSelectedLangs(l => l.includes(name) ? l.filter(x => x !== name) : [...l, name]);
-  const startRecording = () => { setTime(0); setRecStage('recording'); };
-  const stopRecording = () => setRecStage('recorded');
-  const reRecord = () => { setTime(0); setRecStage('idle'); };
+
+  // ---- real microphone recording (falls back to simulated if mic is blocked) ----
+  const startRecording = async () => {
+    setTime(0); setRecStage('recording'); setAudioBlob(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      const chunks = [];
+      rec.ondataavailable = e => chunks.push(e.data);
+      rec.onstop = () => { setAudioBlob(new Blob(chunks, { type: rec.mimeType || 'audio/webm' })); stream.getTracks().forEach(t => t.stop()); };
+      recRef.current = rec;
+      rec.start();
+    } catch { recRef.current = null; }
+  };
+  const stopRecording = () => { if (recRef.current && recRef.current.state !== 'inactive') recRef.current.stop(); setRecStage('recorded'); };
+  const reRecord = () => { setTime(0); setRecStage('idle'); setAudioBlob(null); };
   const fmt = (n) => `00:${String(n).padStart(2,'0')}`;
   const canSubmit = hasText || hasVoice;
-  const submit = () => { setEarnedPoints(totalPoints); setSubmitted(true); };
+
+  const playRecording = () => {
+    if (audioBlob) {
+      if (!blobUrlRef.current) blobUrlRef.current = URL.createObjectURL(audioBlob);
+      const a = new Audio(blobUrlRef.current);
+      if (isPlaying) { a.pause(); setIsPlaying(false); } else { a.play(); setIsPlaying(true); a.onended = () => setIsPlaying(false); }
+    } else setIsPlaying(!isPlaying);
+  };
+
+  // ---- submit to the backend ----
+  const submit = async () => {
+    const data = { phone: phone || undefined, language: language.name, text: textResponse, translation, langs: selectedLangs, formality, prompt: language.sample };
+    let result = null;
+    if (audioBlob) {
+      const fd = new FormData();
+      fd.append('audio', audioBlob, 'recording.webm');
+      fd.append('data', JSON.stringify(data));
+      result = await api.submitContributionWithAudio(fd);
+    } else {
+      result = await api.submitContribution(data);
+    }
+    setEarnedPoints(result ? result.earned : totalPoints);
+    setSubmitted(true);
+    refreshProfile();
+  };
+
   const nextSentence = () => {
     setCount(c => c + 1); setTextResponse(''); setRecStage('idle'); setTime(0);
     setSelectedLangs([]); setTranslation(''); setFormality('Normal'); setSubmitted(false);
+    setAudioBlob(null); setIsPlaying(false); blobUrlRef.current = null;
   };
 
   return <section className="task-page wave-bg slim-wave"><div className="container task-layout">
@@ -841,17 +794,11 @@ function Contribute({ language, setLanguage }) {
 
         <div className="task-card contribute-card">
           <div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Sentence {count} of 10</span></div>
-          <div className="prompt-card">
-            <span>Today's Prompt — {language.name}</span>
-            <p>“{language.sample}”</p>
-          </div>
+          <div className="prompt-card"><span>Today's Prompt — {language.name}</span><p>“{language.sample}”</p></div>
           <div className="no-rules-note">
             <span className="no-rules-badge">No rules — just speak naturally</span>
             <p>Respond exactly how you'd say it to a close friend — one language, three languages, whatever comes out naturally. However it flows is exactly what we need.</p>
-            <div className="example-list">
-              <span>Example responses</span>
-              {exampleResponses.map((ex,i) => <p key={i} className="example-item">“{ex}”</p>)}
-            </div>
+            <div className="example-list"><span>Example responses</span>{exampleResponses.map((ex,i) => <p key={i} className="example-item">“{ex}”</p>)}</div>
           </div>
           <div className="contribute-step">
             <div className="contribute-step-head"><span className="step-num">1</span><h3>Type your response</h3></div>
@@ -867,7 +814,7 @@ function Contribute({ language, setLanguage }) {
               <p className="record-instruction">Tap when you’ve finished speaking</p>
             </div>}
             {recStage === 'recorded' && <div className="inline-recorder">
-              <div className="review-player"><button className="round-play dark" onClick={() => setIsPlaying(!isPlaying)} aria-label={isPlaying ? 'Pause' : 'Play'}>{isPlaying ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor"/>}</button><div className="player-line"><i style={{width: isPlaying ? '66%' : '24%'}}/></div><span>00:{String(Math.max(time,3)).padStart(2,'0')}</span></div>
+              <div className="review-player"><button className="round-play dark" onClick={playRecording} aria-label={isPlaying ? 'Pause' : 'Play'}>{isPlaying ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor"/>}</button><div className="player-line"><i style={{width: isPlaying ? '66%' : '24%'}}/></div><span>00:{String(Math.max(time,3)).padStart(2,'0')}</span></div>
               <button className="text-action small" onClick={reRecord}><RotateCcw size={15}/> Record again</button>
             </div>}
           </div>
@@ -906,30 +853,56 @@ function Contribute({ language, setLanguage }) {
   </div></section>;
 }
 
-function Listen({ language, setLanguage }) {
+function Listen({ language, setLanguage, phone, refreshProfile }) {
   const [decision, setDecision] = useState(null);
   const [playing, setPlaying] = useState(false);
-  const [clip, setClip] = useState(4);
-  const next = () => {setClip(c => c+1); setDecision(null); setPlaying(false)};
+  const [clip, setClip] = useState(null); // real clip from backend (has audio)
+  const [clipNum, setClipNum] = useState(4);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    setClip(null);
+    api.pendingClip(language.name).then(c => setClip(c));
+  }, [language.name]);
+
+  const togglePlay = () => {
+    if (clip && clip.audioUrl) {
+      if (!audioRef.current) audioRef.current = new Audio(clip.audioUrl);
+      if (playing) audioRef.current.pause(); else audioRef.current.play();
+    }
+    setPlaying(!playing);
+  };
+
+  const next = () => {
+    setClipNum(c => c + 1); setDecision(null); setPlaying(false);
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    api.pendingClip(language.name).then(c => setClip(c));
+  };
+
+  const decide = async (d) => {
+    setDecision(d);
+    if (clip) { await api.submitReview({ phone: phone || undefined, clipId: clip.id, decision: d }); refreshProfile(); }
+  };
 
   return <section className="task-page listen-page"><div className="container task-layout">
-    <aside className="task-aside"><div className="eyebrow ink">Listen</div><h1>Help keep every<br/><em>voice clear.</em></h1><p>Listen to a short recording, compare it to the sentence, and make a simple call.</p><div className="task-aside-card"><span>Reviewing in</span><LanguageSelect language={language} setLanguage={setLanguage}/><div className="mini-progress"><div><span>This session</span><b>{clip}/10 clips</b></div><div className="progress-track green-track"><i style={{width: `${clip*10}%`}}/></div></div></div></aside>
+    <aside className="task-aside"><div className="eyebrow ink">Listen</div><h1>Help keep every<br/><em>voice clear.</em></h1><p>Listen to a short recording, compare it to the sentence, and make a simple call.</p><div className="task-aside-card"><span>Reviewing in</span><LanguageSelect language={language} setLanguage={setLanguage}/><div className="mini-progress"><div><span>This session</span><b>{clipNum}/10 clips</b></div><div className="progress-track green-track"><i style={{width: `${clipNum*10}%`}}/></div></div></div></aside>
 
-    <div className="task-main"><div className="review-kicker"><span>Clip {clip} of 10</span><span>About 1 minute left</span></div><div className="task-card validation-card"><div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Community review</span></div>{!decision ? <><h2>Does this recording match?</h2><div className="listen-prompt"><span>The speaker should be saying</span><p>“{language.sample}”</p></div><div className="listen-player"><button className="listen-play" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pause recording' : 'Play recording'}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><div className="player-wave">{Array.from({length:35},(_,i) => <b key={i} style={{height: `${9 + Math.abs(Math.sin(i*.55))*28}px`}}/>)}</div><span>00:12</span></div><p className="decision-label">Listen once, then choose what you heard.</p><div className="decision-grid"><button className="decision yes" onClick={() => setDecision('yes')}><span><Check size={21}/></span><div><b>Yes, it matches</b><small>The words are clear and correct</small></div></button><button className="decision no" onClick={() => setDecision('no')}><span><X size={20}/></span><div><b>No, it doesn’t match</b><small>The words are different or unclear</small></div></button></div><button className="skip-btn" onClick={next}>Skip this clip <SkipForward size={16}/></button></> : <><div className={`task-icon ${decision === 'yes' ? 'success' : 'neutral'}`}>{decision === 'yes' ? <Check size={29}/> : <X size={29}/>}</div><h2>{decision === 'yes' ? 'Thanks for confirming.' : 'Thanks for reviewing.'}</h2><p className="task-intro">Your review helps keep this collection useful for everyone who speaks {language.name}.</p><button className="btn btn-primary task-cta" onClick={next}>Next clip <ArrowRight size={18}/></button><button className="text-action centered" onClick={() => setDecision(null)}>Change answer</button></>}</div></div>
+    <div className="task-main"><div className="review-kicker"><span>Clip {clipNum} of 10</span><span>About 1 minute left</span></div><div className="task-card validation-card"><div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Community review</span></div>{!decision ? <><h2>Does this recording match?</h2><div className="listen-prompt"><span>The speaker should be saying</span><p>“{clip && clip.prompt ? clip.prompt : language.sample}”</p></div><div className="listen-player"><button className="listen-play" onClick={togglePlay} aria-label={playing ? 'Pause recording' : 'Play recording'}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><div className="player-wave">{Array.from({length:35},(_,i) => <b key={i} style={{height: `${9 + Math.abs(Math.sin(i*.55))*28}px`}}/>)}</div><span>00:12</span></div><p className="decision-label">Listen once, then choose what you heard.</p><div className="decision-grid"><button className="decision yes" onClick={() => decide('yes')}><span><Check size={21}/></span><div><b>Yes, it matches</b><small>The words are clear and correct</small></div></button><button className="decision no" onClick={() => decide('no')}><span><X size={20}/></span><div><b>No, it doesn’t match</b><small>The words are different or unclear</small></div></button></div><button className="skip-btn" onClick={next}>Skip this clip <SkipForward size={16}/></button></> : <><div className={`task-icon ${decision === 'yes' ? 'success' : 'neutral'}`}>{decision === 'yes' ? <Check size={29}/> : <X size={29}/>}</div><h2>{decision === 'yes' ? 'Thanks for confirming.' : 'Thanks for reviewing.'}</h2><p className="task-intro">Your review helps keep this collection useful for everyone who speaks {language.name}.</p><button className="btn btn-primary task-cta" onClick={next}>Next clip <ArrowRight size={18}/></button><button className="text-action centered" onClick={() => setDecision(null)}>Change answer</button></>}</div></div>
   </div></section>;
 }
 
 function Leaderboard() {
   const [filter, setFilter] = useState('This month');
+  const [rows, setRows] = useState(null);
+  useEffect(() => { api.leaderboard().then(r => { if (r && r.length) setRows(r); }); }, []);
+  const ranks = rows || FALLBACK_RANKS;
+
   return <section className="leader-page wave-bg slim-wave"><div className="container"><div className="leader-hero"><div><div className="eyebrow ink">Community progress</div><h1>Every contribution<br/>moves us <em>forward.</em></h1></div><p>A small thank-you to the people helping Nigerian languages take up the space they deserve.</p></div><div className="leader-stats"><Stat number="16,842" label="Sentences contributed" accent="green"/><Stat number="2,418" label="Clips reviewed" accent="green"/><Stat number="4" label="Languages growing" accent="green"/></div><div className="leader-controls"><div className="filters">{['This week','This month','All time'].map(x => <button key={x} className={filter === x ? 'filter active' : 'filter'} onClick={() => setFilter(x)}>{x}</button>)}</div><button className="language-nav leader-lang"><span className="dot"/> All languages <ChevronDown size={16}/></button></div><div className="leaderboard-card"><div className="rank-head"><span>Rank</span><span>Contributor</span><span>Language</span><span>Contributions</span></div>{ranks.map((r,i) => <div className={`rank-row ${i<3 ? 'top-rank' : ''}`} key={r[0]}><span className={`rank-num rank-${i+1}`}>{i<3 ? <Trophy size={18}/> : String(i+1).padStart(2,'0')}</span><span className="person"><i>{r[0].split(' ').map(x => x[0]).join('')}</i><b>{r[0]}</b></span><span className="rank-lang"><span className="dot"/>{r[1]}</span><span className="rank-count">{r[2]}</span></div>)}</div><div className="rank-note"><span><Check size={16}/> Rankings celebrate contribution, not competition.</span><span>Updated today</span></div></div></section>;
 }
-
-function Stepper({stage}) { const items=['Prepare','Record','Review','Submit']; const step = stage==='prepare'?0:stage==='recording'?1:stage==='review'?2:3; return <div className="stepper">{items.map((x,i) => <React.Fragment key={x}><div className={i===step?'step active':i<step?'step done':'step'}><span>{i<step?<Check size={13}/>:i+1}</span><b>{x}</b></div>{i<items.length-1&&<i className={i<step?'step-line done':'step-line'}/>}</React.Fragment>)}</div> }
 
 function LanguageSelect({language,setLanguage}) { const [open,setOpen]=useState(false); return <div className="selector-wrap"><button className="select-button" onClick={() => setOpen(!open)}>{language.name}<ChevronDown size={16}/></button>{open&&<div className="select-menu">{languages.map(l => <button key={l.name} onClick={() => {setLanguage(l);setOpen(false)}}><span className={`dot ${l.color}`}/>{l.name}{l.name===language.name&&<Check size={15}/>}</button>)}</div>}</div> }
 
 function Stat({number,label,accent}) { return <div className={`stat ${accent}`}><strong>{number}</strong><span>{label}</span><i/></div> }
-
 function Path({icon,number,title,text,cta,action,tone}) { return <article className={`path-card ${tone}`}><div className="path-top"><span className="path-icon">{icon}</span><span>{number}</span></div><h3>{title}</h3><p>{text}</p><button onClick={action}>{cta}<ArrowRight size={17}/></button></article> }
 
 function Footer({navigate}) {
@@ -941,13 +914,10 @@ function Footer({navigate}) {
     { label: 'Twitter/X', d: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' },
     { label: 'TikTok', d: 'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84.02 8.76-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.3-.67.31-1.06.04-2.26.02-4.51.02-6.77.02-2.93-.01-5.85.02-8.78z' },
   ];
-
   return <footer className="footer"><div className="container footer-grid">
     <div><button className="brand footer-brand" onClick={() => navigate('home')}><img className="brand-logo" src="/assets/nuji-logo.png" alt=""/><span>nuji</span></button><p>Language data made by the people who speak it.</p>
       <div className="footer-social">
-        {socials.map(s => <a key={s.label} href="#" aria-label={s.label}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d={s.d}/></svg>
-        </a>)}
+        {socials.map(s => <a key={s.label} href="#" aria-label={s.label}><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d={s.d}/></svg></a>)}
       </div>
     </div>
     <div className="footer-links"><div><span>Explore</span><button onClick={() => navigate('join')}>Contribute</button><button onClick={() => navigate('listen')}>Listen</button><button onClick={() => navigate('leaderboard')}>Leaderboard</button><button onClick={() => navigate('state')}>State vs State</button></div><div><span>Languages</span><button>Igbo</button><button>Yoruba</button><button>Hausa</button><button>Pidgin</button></div></div>
