@@ -270,46 +270,158 @@ function Home({ navigate, language, setLanguage }) {
   </>;
 }
 
+
 function About({ navigate }) {
-  const privacy = ['Your voice recordings are used only to train Nigerian language AI models', 'We never sell your data to third parties', 'You can choose to contribute anonymously — no real name required', 'Only your state and age range are collected — no personal details', 'The resulting AI models will be open and accessible to all Nigerians'];
-  const steps = [['01','You contribute','You respond to everyday prompts in your natural language — Igbo, Yoruba, Hausa, Pidgin, or any mix. Speak, type, or both.'],['02','Community verifies','Other contributors listen and verify your recording sounds natural. This peer review ensures high quality data.'],['03','Data trains AI','Verified contributions are used to fine-tune language models that understand real Nigerian speech — not textbook language.']];
-  return <section className="about-page"><section className="about-hero wave-bg"><div className="container about-hero-grid"><div><div className="eyebrow">About Nuji</div><h1>Technology that speaks<br/><em>your language.</em></h1><p>Why should AI only work for a few of the world's languages? Our language is our story, our community, our culture. Nuji is building the datasets we want to see in the world.</p><button className="btn btn-primary" onClick={()=>navigate('join')}>Start contributing <ArrowRight size={18}/></button></div><div className="about-mark"><div className="market-woman-svg">
-          <svg viewBox="0 0 200 200" width="260" height="260">
-            <circle cx="100" cy="100" r="95" fill="#F9F6F0" stroke="#008751" strokeWidth="3"/>
-            {/* Woman's head with headtie */}
-            <circle cx="100" cy="70" r="28" fill="#8B6B4D"/>
-            <circle cx="100" cy="70" r="28" fill="#A67B5B" opacity="0.6"/>
-            {/* Headtie */}
-            <path d="M75 60 Q90 45 100 42 Q110 45 125 60 Q120 50 100 48 Q80 50 75 60Z" fill="#008751"/>
-            <path d="M70 65 Q90 55 100 52 Q110 55 130 65 Q115 58 100 56 Q85 58 70 65Z" fill="#F9F6F0"/>
-            {/* Face */}
-            <circle cx="90" cy="68" r="4" fill="#333"/>
-            <circle cx="110" cy="68" r="4" fill="#333"/>
-            <path d="M90 82 Q100 90 110 82" stroke="#333" strokeWidth="2" fill="none"/>
-            {/* Body with wrapper */}
-            <rect x="70" y="95" width="60" height="35" rx="8" fill="#008751"/>
-            <rect x="70" y="95" width="60" height="35" rx="8" fill="#F9F6F0" opacity="0.3"/>
-            {/* Arms carrying goods */}
-            <rect x="55" y="100" width="18" height="35" rx="6" fill="#A67B5B"/>
-            <rect x="127" y="100" width="18" height="35" rx="6" fill="#A67B5B"/>
-            {/* Bowl on head */}
-            <ellipse cx="100" cy="45" rx="22" ry="8" fill="#D4A574"/>
-            <rect x="82" y="32" width="36" height="14" rx="3" fill="#D4A574"/>
-            {/* Fruits in bowl */}
-            <circle cx="92" cy="37" r="5" fill="#E8AE3C"/>
-            <circle cx="102" cy="35" r="4" fill="#E8AE3C"/>
-            <circle cx="110" cy="38" r="5" fill="#E8AE3C"/>
-            {/* Ground */}
-            <rect x="20" y="132" width="160" height="40" rx="10" fill="#F9F6F0" stroke="#008751" strokeWidth="1"/>
-            {/* Market items on ground */}
-            <rect x="40" y="125" width="20" height="12" rx="2" fill="#D4A574"/>
-            <rect x="65" y="127" width="15" height="10" rx="2" fill="#E8AE3C"/>
-            <rect x="120" y="126" width="18" height="11" rx="2" fill="#D4A574"/>
-            <rect x="145" y="128" width="15" height="9" rx="2" fill="#E8AE3C"/>
-            <text x="100" y="165" textAnchor="middle" fontSize="12" fontWeight="700" fill="#008751">VOICES · CULTURE · FUTURE</text>
-          </svg>
-        </div></div></div></section><section className="section"><div className="container reading-section"><div className="eyebrow ink">The problem</div><h2>Language should not be a barrier to being <em>understood.</em></h2><div className="reading-copy"><p>Over 200 million Nigerians speak Igbo, Yoruba, Hausa, and Pidgin every single day. Yet when they try to use AI assistants, those tools barely understand them — because they were trained almost entirely on English and a handful of other languages.</p><p>The data used by big AI companies doesn't include the way Nigerians actually speak — the code-switching, the street talk, the market language, the informal everyday conversations that make our languages alive. That's the gap Nuji is filling.</p></div></div></section><section className="section how-section"><div className="container"><div className="section-heading"><div><div className="eyebrow">How it works</div><h2>Built by voices.<br/>Checked by community.</h2></div></div><div className="how-grid">{steps.map(([n,title,text])=><article key={n}><span>{n}</span><h3>{title}</h3><p>{text}</p></article>)}</div></div></section><section className="section"><div className="container"><div className="section-heading"><div><div className="eyebrow ink">The languages</div><h2>Starting at home.<br/><em>Growing from there.</em></h2></div><p>We're starting with Nigeria's four most widely spoken languages — and expanding from there.</p></div><div className="about-language-grid">{languages.map(l=><div className={`about-language ${l.color}`} key={l.name}><b>{l.name}</b><span>{l.name==='Igbo'?'44M+':l.name==='Yoruba'?'45M+':l.name==='Hausa'?'63M+':'75M+'} speakers</span></div>)}</div></div></section><section className="section data-section"><div className="container data-grid"><div><div className="eyebrow">Your data, used responsibly</div><h2>Good data begins with <em>trust.</em></h2></div><ul>{privacy.map(item=><li key={item}><span><Check size={16}/></span>{item}</li>)}</ul></div></section><section className="section founder-section"><div className="container founder-card"><div className="founder-seal">N</div><div><div className="eyebrow">Who is building Nuji?</div><h2>A Nigerian founder<br/>building what should <em>exist.</em></h2><p>Nuji is built by a Nigerian who speaks Igbo, Yoruba, Pidgin and French — and understands firsthand what it means to be left out of the AI revolution. This is not an academic project. This is infrastructure for 200 million people who deserve AI that speaks their language.</p></div></div></section><section className="final-cta"><div className="container final-inner"><div><div className="eyebrow">Ready to contribute?</div><h2>Every voice brings<br/>us one step closer.</h2><p>Every sentence you speak or type brings Nigerian language AI one step closer to reality.</p></div><button className="btn btn-light" onClick={()=>navigate('join')}>Start Contributing <ArrowRight size={18}/></button></div><p className="about-signoff">Built for the people. Powered by their voice. 🇳🇬</p></section></section>;
+  const privacy = [
+    'Your voice recordings are used only to train Nigerian language AI models',
+    'We never sell your data to third parties',
+    'You can choose to contribute anonymously — no real name required',
+    'Only your state and age range are collected — no personal details',
+    'The resulting AI models will be open and accessible to all Nigerians'
+  ];
+
+  const steps = [
+    ['01', 'You contribute', 'You respond to everyday prompts in your natural language — Igbo, Yoruba, Hausa, Pidgin, or any mix. Speak, type, or both.'],
+    ['02', 'Community verifies', 'Other contributors listen and verify your recording sounds natural. This peer review ensures high quality data.'],
+    ['03', 'Data trains AI', 'Verified contributions are used to fine-tune language models that understand real Nigerian speech — not textbook language.']
+  ];
+
+  // If `languages` is already defined elsewhere in your file, delete this block
+  const languages = [
+    { name: 'Igbo', color: 'green' },
+    { name: 'Yoruba', color: 'gold' },
+    { name: 'Hausa', color: 'berry' },
+    { name: 'Pidgin', color: 'coral' }
+  ];
+
+  return (
+    <section className="about-page">
+      <section className="about-hero wave-bg">
+        <div className="container about-hero-grid">
+          <div>
+            <div className="eyebrow">About Nuji</div>
+            <h1>
+              Technology that speaks<br />
+              <em>your language.</em>
+            </h1>
+            <p>
+              Why should AI only work for a few of the world's languages? Our
+              language is our story, our community, our culture. Nuji is building
+              the datasets we want to see in the world.
+            </p>
+            <button className="btn btn-primary" onClick={() => navigate('join')}>
+              Start contributing <ArrowRight size={18} />
+            </button>
+          </div>
+
+          <div className="about-mark">
+            <div className="market-woman-svg">
+              <img
+                src="/assets/nuji12.png"
+                alt="Nuji marketplace illustration"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container reading-section">
+          <div className="eyebrow ink">The problem</div>
+          <h2>Language should not be a barrier to being <em>understood.</em></h2>
+          <div className="reading-copy">
+            <p>Over 200 million Nigerians speak Igbo, Yoruba, Hausa, and Pidgin every single day. Yet when they try to use AI assistants, those tools barely understand them — because they were trained almost entirely on English and a handful of other languages.</p>
+            <p>The data used by big AI companies doesn't include the way Nigerians actually speak — the code-switching, the street talk, the market language, the informal everyday conversations that make our languages alive. That's the gap Nuji is filling.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="section how-section">
+        <div className="container">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">How it works</div>
+              <h2>Built by voices.<br />Checked by community.</h2>
+            </div>
+          </div>
+          <div className="how-grid">
+            {steps.map(([n, title, text]) => (
+              <article key={n}>
+                <span>{n}</span>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow ink">The languages</div>
+              <h2>Starting at home.<br /><em>Growing from there.</em></h2>
+            </div>
+            <p>We're starting with Nigeria's four most widely spoken languages — and expanding from there.</p>
+          </div>
+          <div className="about-language-grid">
+            {languages.map(l => (
+              <div className={`about-language ${l.color}`} key={l.name}>
+                <b>{l.name}</b>
+                <span>
+                  {l.name === 'Igbo' ? '44M+' : l.name === 'Yoruba' ? '45M+' : l.name === 'Hausa' ? '63M+' : '75M+'} speakers
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="section data-section">
+        <div className="container data-grid">
+          <div>
+            <div className="eyebrow">Your data, used responsibly</div>
+            <h2>Good data begins with <em>trust.</em></h2>
+          </div>
+          <ul>
+            {privacy.map(item => (
+              <li key={item}>
+                <span><Check size={16} /></span>{item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="section founder-section">
+        <div className="container founder-card">
+          <div className="founder-seal">N</div>
+          <div>
+            <div className="eyebrow">Who is building Nuji?</div>
+            <h2>A Nigerian founder<br />building what should <em>exist.</em></h2>
+            <p>Nuji is built by a Nigerian who speaks Igbo, Yoruba, Pidgin and French — and understands firsthand what it means to be left out of the AI revolution. This is not an academic project. This is infrastructure for 200 million people who deserve AI that speaks their language.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="final-cta">
+        <div className="container final-inner">
+          <div>
+            <div className="eyebrow">Ready to contribute?</div>
+            <h2>Every voice brings<br />us one step closer.</h2>
+            <p>Every sentence you speak or type brings Nigerian language AI one step closer to reality.</p>
+          </div>
+          <button className="btn btn-light" onClick={() => navigate('join')}>
+            Start Contributing <ArrowRight size={18} />
+          </button>
+        </div>
+        <p className="about-signoff">Built for the people. Powered by their voice. 🇳🇬</p>
+      </section>
+    </section>
+  );
 }
+
 
 // State vs State Page
 function StatePage({ navigate }) {
