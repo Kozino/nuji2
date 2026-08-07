@@ -114,7 +114,7 @@ function profilePayload(user) {
     badgesEarned: earned.length,
     badgesTotal: BADGES.length,
     referral: {
-      url: `https://nuji-next.vercel.app?ref=${user.refCode}`,
+      url: `https://nuji-test.netlify.app?ref=${user.refCode}`,
       refCode: user.refCode,
       joined: user.referrals,
       points: user.referrals * POINT_RULES.referral
