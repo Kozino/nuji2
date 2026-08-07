@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowRight, Check, ChevronDown, CircleHelp, Headphones, LockKeyhole, Mail, Menu, Mic, Pause, Play, RotateCcw, SkipForward, Trophy, Volume2, X, User, Clock, Award, Send, Phone, Music, MessageCircle, MapPin, Flag, BarChart3, Users, Layers, Globe, Zap, Lock, Type } from "lucide-react";
 import { api } from './api.js';
+import nuji10 from './assets/nuji14.jpg';
+import nuji11 from './assets/nuji13.jpg';
 import './styles.css';
 
 const languages = [
@@ -84,7 +86,7 @@ const DEMO_PROFILE = {
   badges: FALLBACK_BADGES,
   badgesEarned: FALLBACK_BADGES.filter(b => b.earned).length,
   badgesTotal: FALLBACK_BADGES.length,
-  referral: { url: 'https://nuji-test.netlify.app?ref=', joined: 0, points: 0 }
+  referral: { url: 'https://nuji-test.netlify.app/?ref=', joined: 0, points: 0 }
 };
 
 // Nigeria's 36 states + FCT with LGAs
@@ -253,8 +255,20 @@ function Home({ navigate, language, setLanguage }) {
       </div></div>
     </section>
 
-    <section className="section culture-section">
-      <div className="container culture-grid"><div className="culture-visual"><img className="photo-block photo-main" src="/assets/nuji14.png" alt="Everyday Nigerian market life"/><img className="photo-block photo-small" src="/assets/nuji13.png" alt="Nigerian community voices"/><div className="culture-stamp">OUR LANGUAGE<br/>IS OUR STORY</div></div><div className="culture-copy"><div className="eyebrow">Rooted in culture</div><h2>Not textbook language. <em>Life</em> as it is spoken.</h2><p>From Lagos to Kano and Enugu, everyday voices carry expressions, humour, memory, and place. Nuji gives those voices a place in the technologies being built now.</p><button className="text-action" onClick={() => navigate('join')}>Contribute a sentence <ArrowRight size={17}/></button></div></div>
+       <section className="section culture-section">
+      <div className="container culture-grid">
+        <div className="culture-visual">
+          <img className="photo-block photo-main" src={nuji10} alt="Everyday Nigerian market life"/>
+          <img className="photo-block photo-small" src={nuji11} alt="Nigerian community voices"/>
+          <div className="culture-stamp">OUR LANGUAGE<br/>IS OUR STORY</div>
+        </div>
+        <div className="culture-copy">
+          <div className="eyebrow">Rooted in culture</div>
+          <h2>Not textbook language. <em>Life</em> as it is spoken.</h2>
+          <p>From Lagos to Kano and Enugu, everyday voices carry expressions, humour, memory, and place. Nuji gives those voices a place in the technologies being built now.</p>
+          <button className="text-action" onClick={() => navigate('join')}>Contribute a sentence <ArrowRight size={17}/></button>
+        </div>
+      </div>
     </section>
 
     <section className="final-cta"><div className="container final-inner"><div><div className="eyebrow">Your turn</div><h2>Your voice belongs<br/>in the dataset.</h2></div><button className="btn btn-light" onClick={() => navigate('join')}>Contribute now <ArrowRight size={18}/></button></div></section>
