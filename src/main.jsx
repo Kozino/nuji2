@@ -84,7 +84,7 @@ const DEMO_PROFILE = {
   badges: FALLBACK_BADGES,
   badgesEarned: FALLBACK_BADGES.filter(b => b.earned).length,
   badgesTotal: FALLBACK_BADGES.length,
-  referral: { url: 'https://nuji-naija.netlify.app?ref=', joined: 0, points: 0 }
+  referral: { url: 'https://nuji-test.netlify.app?ref=', joined: 0, points: 0 }
 };
 
 // Nigeria's 36 states + FCT with LGAs
