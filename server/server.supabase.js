@@ -86,7 +86,7 @@ async function profilePayload(user) {
     badges: BADGES.map(b => ({ ...b, earned: earned.includes(b.name) })),
     badgesEarned: earned.length, badgesTotal: BADGES.length,
     referral: {
-      url: `https://nuji-next.vercel.app?ref=${user.refCode}`,
+      url: `https://nuji-test.netlify.app?ref=${user.refCode}`,
       refCode: user.refCode, joined: user.referrals, points: user.referrals * POINT_RULES.referral
     }
   };
