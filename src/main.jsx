@@ -237,7 +237,7 @@ function Home({ navigate, language, setLanguage }) {
           <div className="eyebrow"><span className="pulse-dot"/> Made with voices across Nigeria</div>
           <h1>Technology that <em>understands</em> home.</h1>
           <p>Help build voice data in the languages Nigerians actually use — at the market, with family, and everywhere in between.</p>
-          <div className="hero-actions"><button className="btn btn-primary" onClick={() => navigate('join')}>Add your voice <ArrowRight size={18}/></button><button className="text-action" onClick={() => navigate('leaderboard')}>See community progress <ArrowRight size={17}/></button></div>
+          <div className="hero-actions"><button className="btn btn-primary" onClick={() => navigate('contribute')}>Add your voice <ArrowRight size={18}/></button><button className="text-action" onClick={() => navigate('leaderboard')}>See community progress <ArrowRight size={17}/></button></div>
           <div className="hero-note"><span className="avatars"><i>A</i><i>C</i><i>T</i></span><span>Join people making language visible.</span></div>
         </div>
         <div className="sound-stage" aria-label="Example recording contribution">
@@ -594,7 +594,10 @@ function Join({ navigate, language, setLanguage, phone, setPhone, onSaved }) {
     setLocalPhone(normalized);
     setPhone(normalized);
     const res = await api.checkPhone(normalized);
-    setReturning(!!(res && res.hasProfile));
+    // Registered member (full profile) -> straight to the profile dashboard
+    if (res && res.hasProfile) { navigate('profile'); return; }
+    // Brand-new number OR previously quick-contributed -> show both options
+    setReturning(false);
     setStep('choose');
   };
 
