@@ -1,0 +1,10 @@
+# Netlify config for the Nuji SPA
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Send every route to index.html so refresh/deep-links work (React handles the path)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
