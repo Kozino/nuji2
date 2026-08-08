@@ -32,7 +32,8 @@ function blankUser(phone) {
     streak: 0,
     bestStreak: 0,
     lastDay: null,
-    earlyBird: false
+    earlyBird: false,
+    profileKind: null   // 'full' | 'quick' | null
   };
 }
 
@@ -136,12 +137,10 @@ export function activityPayload(u) {
   const cells = [];
   const months = [];
   const now = new Date();
-  // start 52 weeks ago, aligned to a 7-day column cycle
-  const start = new Date(now);
-  start.setDate(start.getDate() - 370);
+  // LEFT = today, scrolling right goes back in time (matches the scroll direction)
   for (let i = 0; i <= 370; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
     const key = d.toISOString().slice(0, 10);
     if (i % 7 === 0) months.push(d.toLocaleString('en', { month: 'narrow' }));
     cells.push(dayLevel(u.days[key] || 0));
