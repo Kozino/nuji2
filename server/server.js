@@ -10,10 +10,20 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import {
-  getDB, save, findUser, createUser, normalizePhone, POINT_RULES,
+  getDB, save, findUser, createUser, POINT_RULES,
   levelInfo, totalSubs, BADGES, earnedBadges, activityPayload, bumpDay,
   rankOf, topLanguage, STATE_ZONES
 } from './db.js';
+import { getPrompt } from './prompts.js';
+
+// Accepts 0803..., +234803..., 234803...
+const normalizePhone = (p) => {
+  let d = String(p || '').replace(/[\s-]/g, '');
+  if (d.startsWith('+234')) d = '0' + d.slice(4);
+  else if (d.startsWith('234')) d = '0' + d.slice(3);
+  return d;
+};
+const validNaijaPhone = (p) => /^0(70|80|81|90|91|93)\d{8}$/.test(p);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -35,27 +45,29 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 // Check a phone number; creates the account if new
 app.post('/api/auth/phone', (req, res) => {
   const phone = normalizePhone(req.body.phone);
-  if (!phone) return res.status(400).json({ error: 'Phone required' });
+  if (!validNaijaPhone(phone)) return res.status(400).json({ error: 'Enter a valid Nigerian number, e.g. 0803 123 4567' });
   const existing = findUser(phone);
   const user = existing || createUser(phone);
-  res.json({ exists: !!existing, phone: user.phone, hasProfile: !!user.state });
+  res.json({ exists: !!existing, phone: user.phone, hasProfile: user.profileKind === 'full' });
 });
 
-// Create / update the contributor profile
+// kind: 'full' (create profile form) | 'quick' (quick-contribute questions)
 app.post('/api/profile', (req, res) => {
-  const { phone, nickname, state, lga, age, gender, languages, contribution, ref } = req.body;
+  const { phone, nickname, state, lga, age, gender, languages, contribution, ref, kind } = req.body;
   if (!phone) return res.status(400).json({ error: 'Phone required' });
   const user = createUser(phone);
 
   Object.assign(user, {
-    nickname: nickname || '',
-    state: state || '',
-    lga: lga || '',
-    age: age || '',
-    gender: gender || '',
-    languages: languages || [],
+    nickname: kind === 'full' ? (nickname || '') : (user.nickname || ''),
+    state: state || user.state,
+    lga: kind === 'full' ? (lga || '') : (user.lga || ''),
+    age: age || user.age,
+    gender: gender || user.gender,
+    languages: kind === 'full' ? (languages || []) : (user.languages || []),
     contributionLang: contribution || user.contributionLang
   });
+  if (kind === 'full') user.profileKind = 'full';
+  else if (!user.profileKind) user.profileKind = 'quick';
   if (user.languages.length) {
     for (const l of user.languages) user.langCounts[l] = user.langCounts[l] || 0;
   }
@@ -95,6 +107,8 @@ function profilePayload(user) {
     reviews: user.reviews,
     ...levelInfo(user.points),
     streak: user.streak,
+    profileKind: user.profileKind || null,
+    hasProfile: user.profileKind === 'full',
     overview: [
       { icon: 'total', number: totalSubs(user), label: 'Total' },
       { icon: 'text', number: user.subs.text, label: 'Text Only' },
@@ -121,6 +135,13 @@ function profilePayload(user) {
     }
   };
 }
+
+// ================= PROMPTS =================
+app.get('/api/prompts', (req, res) => {
+  const language = req.query.language || 'Igbo';
+  const seed = parseInt(req.query.seed || '0', 10);
+  res.json({ text: getPrompt(language, seed), language });
+});
 
 // ================= CONTRIBUTIONS =================
 
@@ -221,6 +242,15 @@ app.get('/api/states', (req, res) => {
     s.submissions += totalSubs(u);
   }
   res.json(Object.values(agg));
+});
+
+// ================= COMMUNITY TOTALS =================
+app.get('/api/stats', (req, res) => {
+  const db = getDB();
+  res.json({
+    sentences: db.contributions.length,
+    reviews: db.contributions.reduce((s, c) => s + (c.reviews || []).length, 0)
+  });
 });
 
 // ================= START =================
