@@ -4,8 +4,7 @@
 // to demo data when the backend is not running.
 // ============================================================
 
-// In development the Vite proxy forwards /api to localhost:4000.
-// In production it uses your Render backend automatically.
+// Development: Vite proxy → localhost:4000. Production: your Render backend.
 const BASE = (import.meta.env.VITE_API_URL || 'https://nuji2.onrender.com') + '/api';
 
 async function request(path, options = {}) {
@@ -30,18 +29,19 @@ export const api = {
   saveProfile: (data) => post('/profile', data),
   getProfile: (phone) => get(`/profile/${encodeURIComponent(phone)}`),
 
-  // ---- prompts (Speak page sentences) ----
-  getPrompt: (language, seed) => get(`/prompts?language=${encodeURIComponent(language)}&seed=${seed || 0}`),
-
   // ---- contributions ----
   submitContribution: (data) => post('/contributions', data),           // JSON (text only)
   submitContributionWithAudio: (formData) => post('/contributions', formData), // multipart (voice)
 
+  // ---- prompts (Speak page sentences) ----
+  getPrompt: (language, seed) => get(`/prompts?language=${encodeURIComponent(language)}&seed=${seed || 0}`),
+
   // ---- listening / reviews ----
-  pendingClip: (language) => get(`/clips?language=${encodeURIComponent(language)}`),
+  pendingClip: (language, phone) => get(`/clips?language=${encodeURIComponent(language)}&phone=${encodeURIComponent(phone || '')}`),
   submitReview: (data) => post('/reviews', data),
 
   // ---- public data ----
   leaderboard: () => get('/leaderboard'),
-  states: () => get('/states')
+  states: () => get('/states'),
+  stats: () => get('/stats')
 };
