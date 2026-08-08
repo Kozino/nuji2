@@ -178,10 +178,15 @@ app.post('/api/contributions', upload.single('audio'), async (req, res) => {
 
     let audioUrl = null;
     if (req.file) {
-      const path = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.webm`;
-      const { error } = await supabase.storage.from('recordings').upload(path, req.file.buffer, { contentType: req.file.mimetype || 'audio/webm' });
-      if (error) throw error;
-      audioUrl = supabase.storage.from('recordings').getPublicUrl(path).data.publicUrl;
+      try {
+        const path = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.webm`;
+        const { error } = await supabase.storage.from('recordings').upload(path, req.file.buffer, { contentType: req.file.mimetype || 'audio/webm' });
+        if (error) throw error;
+        audioUrl = supabase.storage.from('recordings').getPublicUrl(path).data.publicUrl;
+      } catch {
+        // storage failed -> embed the audio so reviews still work
+        audioUrl = `data:${req.file.mimetype || 'audio/webm'};base64,${req.file.buffer.toString('base64')}`;
+      }
     }
 
     const mix = (langs || []).length >= 2;
@@ -258,6 +263,16 @@ app.get('/api/states', async (req, res) => {
     s.points += u.points; s.contributors += 1; s.submissions += totalSubs(u);
   }
   res.json(Object.values(agg));
+});
+
+// ================= COMMUNITY TOTALS =================
+app.get('/api/stats', async (req, res) => {
+  const { data } = await supabase.from('contributions').select('reviews');
+  const rows = data || [];
+  res.json({
+    sentences: rows.length,
+    reviews: rows.reduce((s, c) => s + (c.reviews || []).length, 0)
+  });
 });
 
 // ---------------- start + auto-seed prompts ----------------
