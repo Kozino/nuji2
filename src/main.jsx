@@ -147,8 +147,8 @@ const nigeriaStates = {
 const nigeriaStateNames = Object.keys(nigeriaStates);
 
 function App() {
-  const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/contribute': 'listen', '/leaderboard': 'leaderboard', '/state': 'state', '/profile': 'profile' };
-  const pathMap = { home: '/', about: '/about', join: '/contribute', contribute: '/speak', listen: '/contribute', leaderboard: '/leaderboard', state: '/state', profile: '/profile' };
+  const routeMap = { '/': 'home', '/about': 'about', '/contribute': 'join', '/speak': 'contribute', '/listen': 'listen', '/leaderboard': 'leaderboard', '/state': 'state', '/profile': 'profile' };
+  const pathMap = { home: '/', about: '/about', join: '/contribute', contribute: '/speak', listen: '/listen', leaderboard: '/leaderboard', state: '/state', profile: '/profile' };
   const [page, setPage] = useState(() => routeMap[window.location.pathname] || 'home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState(languages[0]);
@@ -201,7 +201,7 @@ function App() {
 }
 
 function Nav({ page, menuOpen, setMenuOpen, navigate, hasProfile, points }) {
-  const links = [['home', 'Home'], ['about', 'About'], ['join', 'Contribute'], ['join', 'Listen'], ['leaderboard', 'Leaderboard'], ['state', 'State']];
+  const links = [['home', 'Home'], ['about', 'About'], ['join', 'Contribute'], ['listen', 'Listen'], ['leaderboard', 'Leaderboard'], ['state', 'State']];
   return <>
     <header className="nav-wrap">
       <nav className="nav container" aria-label="Main navigation">
@@ -237,7 +237,7 @@ function Home({ navigate, language, setLanguage }) {
           <div className="eyebrow"><span className="pulse-dot"/> Made with voices across Nigeria</div>
           <h1>Technology that <em>understands</em> home.</h1>
           <p>Help build voice data in the languages Nigerians actually use — at the market, with family, and everywhere in between.</p>
-          <div className="hero-actions"><button className="btn btn-primary" onClick={() => navigate('join')}>Add your voice <ArrowRight size={18}/></button><button className="text-action" onClick={() => navigate('leaderboard')}>See community progress <ArrowRight size={17}/></button></div>
+          <div className="hero-actions"><button className="btn btn-primary" onClick={() => navigate('contribute')}>Add your voice <ArrowRight size={18}/></button><button className="text-action" onClick={() => navigate('leaderboard')}>See community progress <ArrowRight size={17}/></button></div>
           <div className="hero-note"><span className="avatars"><i>A</i><i>C</i><i>T</i></span><span>Join people making language visible.</span></div>
         </div>
         <div className="sound-stage" aria-label="Example recording contribution">
@@ -854,7 +854,10 @@ function Contribute({ language, setLanguage, phone, refreshProfile }) {
     } catch { recRef.current = null; }
   };
   const stopRecording = () => { if (recRef.current && recRef.current.state !== 'inactive') recRef.current.stop(); setRecStage('recorded'); };
-  const reRecord = () => { setTime(0); setRecStage('idle'); setAudioBlob(null); };
+  const reRecord = () => {
+    setTime(0); setRecStage('idle'); setAudioBlob(null); setIsPlaying(false);
+    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+  };
   const fmt = (n) => `00:${String(n).padStart(2,'0')}`;
   const canSubmit = hasText || hasVoice;
 
@@ -975,11 +978,11 @@ function Listen({ language, setLanguage, phone, refreshProfile }) {
 
   useEffect(() => {
     setClip(null);
-    api.pendingClip(language.name).then(c => setClip(c));
+    api.pendingClip(language.name, phone).then(c => setClip(c));
     let on = true;
     (api.getPrompt ? api.getPrompt(language.name, clipNum) : Promise.resolve(null)).then(p => { if (on && p && p.text) setPromptText(p.text); });
     return () => { on = false; };
-  }, [language.name, clipNum]);
+  }, [language.name, clipNum, phone]);
 
   const togglePlay = () => {
     if (clip && clip.audioUrl) {
@@ -992,7 +995,7 @@ function Listen({ language, setLanguage, phone, refreshProfile }) {
   const next = () => {
     setClipNum(c => c + 1); setDecision(null); setPlaying(false);
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    api.pendingClip(language.name).then(c => setClip(c));
+    api.pendingClip(language.name, phone).then(c => setClip(c));
   };
 
   const decide = async (d) => {
@@ -1003,17 +1006,21 @@ function Listen({ language, setLanguage, phone, refreshProfile }) {
   return <section className="task-page listen-page"><div className="container task-layout">
     <aside className="task-aside"><div className="eyebrow ink">Listen</div><h1>Help keep every<br/><em>voice clear.</em></h1><p>Listen to a short recording, compare it to the sentence, and make a simple call.</p><div className="task-aside-card"><span>Reviewing in</span><LanguageSelect language={language} setLanguage={setLanguage}/><div className="mini-progress"><div><span>This session</span><b>{clipNum}/10 clips</b></div><div className="progress-track green-track"><i style={{width: `${clipNum*10}%`}}/></div></div></div></aside>
 
-    <div className="task-main"><div className="review-kicker"><span>Clip {clipNum} of 10</span><span>About 1 minute left</span></div><div className="task-card validation-card"><div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Community review</span></div>{!decision ? <><h2>Does this recording match?</h2><div className="listen-prompt"><span>The speaker should be saying</span><p>“{clip && clip.prompt ? clip.prompt : promptText}”</p></div><div className="listen-player"><button className="listen-play" onClick={togglePlay} aria-label={playing ? 'Pause recording' : 'Play recording'}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><div className="player-wave">{Array.from({length:35},(_,i) => <b key={i} style={{height: `${9 + Math.abs(Math.sin(i*.55))*28}px`}}/>)}</div><span>00:12</span></div><p className="decision-label">Listen once, then choose what you heard.</p><div className="decision-grid"><button className="decision yes" onClick={() => decide('yes')}><span><Check size={21}/></span><div><b>Yes, it matches</b><small>The words are clear and correct</small></div></button><button className="decision no" onClick={() => decide('no')}><span><X size={20}/></span><div><b>No, it doesn’t match</b><small>The words are different or unclear</small></div></button></div><button className="skip-btn" onClick={next}>Skip this clip <SkipForward size={16}/></button></> : <><div className={`task-icon ${decision === 'yes' ? 'success' : 'neutral'}`}>{decision === 'yes' ? <Check size={29}/> : <X size={29}/>}</div><h2>{decision === 'yes' ? 'Thanks for confirming.' : 'Thanks for reviewing.'}</h2><p className="task-intro">Your review helps keep this collection useful for everyone who speaks {language.name}.</p><button className="btn btn-primary task-cta" onClick={next}>Next clip <ArrowRight size={18}/></button><button className="text-action centered" onClick={() => setDecision(null)}>Change answer</button></>}</div></div>
+    <div className="task-main"><div className="review-kicker"><span>Clip {clipNum} of 10</span><span>About 1 minute left</span></div><div className="task-card validation-card"><div className="task-card-head"><span className="language-badge"><span className={`dot ${language.color}`}/> {language.name}</span><span className="counter">Community review</span></div>{!decision ? <><h2>Does this recording match?</h2><div className="listen-prompt"><span>The speaker should be saying</span><p>“{clip && clip.prompt ? clip.prompt : promptText}”</p></div>{clip ? <div className="listen-player"><button className="listen-play" onClick={togglePlay} aria-label={playing ? 'Pause recording' : 'Play recording'}>{playing ? <Pause fill="currentColor"/> : <Play fill="currentColor"/>}</button><div className="player-wave">{Array.from({length:35},(_,i) => <b key={i} style={{height: `${9 + Math.abs(Math.sin(i*.55))*28}px`}}/>)}</div><span>00:12</span></div> : <p className="task-help">No voice recordings waiting for review in {language.name} yet — contribute a voice or check back soon.</p>}<p className="decision-label">Listen once, then choose what you heard.</p><div className="decision-grid"><button className="decision yes" onClick={() => decide('yes')}><span><Check size={21}/></span><div><b>Yes, it matches</b><small>The words are clear and correct</small></div></button><button className="decision no" onClick={() => decide('no')}><span><X size={20}/></span><div><b>No, it doesn’t match</b><small>The words are different or unclear</small></div></button></div><button className="skip-btn" onClick={next}>Skip this clip <SkipForward size={16}/></button></> : <><div className={`task-icon ${decision === 'yes' ? 'success' : 'neutral'}`}>{decision === 'yes' ? <Check size={29}/> : <X size={29}/>}</div><h2>{decision === 'yes' ? 'Thanks for confirming.' : 'Thanks for reviewing.'}</h2><p className="task-intro">Your review helps keep this collection useful for everyone who speaks {language.name}.</p><button className="btn btn-primary task-cta" onClick={next}>Next clip <ArrowRight size={18}/></button><button className="text-action centered" onClick={() => setDecision(null)}>Change answer</button></>}</div></div>
   </div></section>;
 }
 
 function Leaderboard() {
   const [filter, setFilter] = useState('This month');
   const [rows, setRows] = useState(null);
-  useEffect(() => { api.leaderboard().then(r => { if (r && r.length) setRows(r); }); }, []);
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    api.leaderboard().then(r => { if (r && r.length) setRows(r); });
+    api.stats().then(s => { if (s) setStats(s); });
+  }, []);
   const ranks = rows || FALLBACK_RANKS;
 
-  return <section className="leader-page wave-bg slim-wave"><div className="container"><div className="leader-hero"><div><div className="eyebrow ink">Community progress</div><h1>Every contribution<br/>moves us <em>forward.</em></h1></div><p>A small thank-you to the people helping Nigerian languages take up the space they deserve.</p></div><div className="leader-stats"><Stat number="16,842" label="Sentences contributed" accent="green"/><Stat number="2,418" label="Clips reviewed" accent="green"/><Stat number="4" label="Languages growing" accent="green"/></div><div className="leader-controls"><div className="filters">{['This week','This month','All time'].map(x => <button key={x} className={filter === x ? 'filter active' : 'filter'} onClick={() => setFilter(x)}>{x}</button>)}</div><button className="language-nav leader-lang"><span className="dot"/> All languages <ChevronDown size={16}/></button></div><div className="leaderboard-card"><div className="rank-head"><span>Rank</span><span>Contributor</span><span>Language</span><span>Contributions</span></div>{ranks.map((r,i) => <div className={`rank-row ${i<3 ? 'top-rank' : ''}`} key={r[0]}><span className={`rank-num rank-${i+1}`}>{i<3 ? <Trophy size={18}/> : String(i+1).padStart(2,'0')}</span><span className="person"><i>{r[0].split(' ').map(x => x[0]).join('')}</i><b>{r[0]}</b></span><span className="rank-lang"><span className="dot"/>{r[1]}</span><span className="rank-count">{r[2]}</span></div>)}</div><div className="rank-note"><span><Check size={16}/> Rankings celebrate contribution, not competition.</span><span>Updated today</span></div></div></section>;
+  return <section className="leader-page wave-bg slim-wave"><div className="container"><div className="leader-hero"><div><div className="eyebrow ink">Community progress</div><h1>Every contribution<br/>moves us <em>forward.</em></h1></div><p>A small thank-you to the people helping Nigerian languages take up the space they deserve.</p></div><div className="leader-stats"><Stat number={stats ? stats.sentences.toLocaleString() : '0'} label="Sentences contributed" accent="green"/><Stat number={stats ? stats.reviews.toLocaleString() : '0'} label="Clips reviewed" accent="green"/><Stat number="4" label="Languages growing" accent="green"/></div><div className="leader-controls"><div className="filters">{['This week','This month','All time'].map(x => <button key={x} className={filter === x ? 'filter active' : 'filter'} onClick={() => setFilter(x)}>{x}</button>)}</div><button className="language-nav leader-lang"><span className="dot"/> All languages <ChevronDown size={16}/></button></div><div className="leaderboard-card"><div className="rank-head"><span>Rank</span><span>Contributor</span><span>Language</span><span>Contributions</span></div>{ranks.map((r,i) => <div className={`rank-row ${i<3 ? 'top-rank' : ''}`} key={r[0]}><span className={`rank-num rank-${i+1}`}>{i<3 ? <Trophy size={18}/> : String(i+1).padStart(2,'0')}</span><span className="person"><i>{r[0].split(' ').map(x => x[0]).join('')}</i><b>{r[0]}</b></span><span className="rank-lang"><span className="dot"/>{r[1]}</span><span className="rank-count">{r[2]}</span></div>)}</div><div className="rank-note"><span><Check size={16}/> Rankings celebrate contribution, not competition.</span><span>Updated today</span></div></div></section>;
 }
 
 function LanguageSelect({language,setLanguage}) { const [open,setOpen]=useState(false); return <div className="selector-wrap"><button className="select-button" onClick={() => setOpen(!open)}>{language.name}<ChevronDown size={16}/></button>{open&&<div className="select-menu">{languages.map(l => <button key={l.name} onClick={() => {setLanguage(l);setOpen(false)}}><span className={`dot ${l.color}`}/>{l.name}{l.name===language.name&&<Check size={15}/>}</button>)}</div>}</div> }
@@ -1036,7 +1043,7 @@ function Footer({navigate}) {
         {socials.map(s => <a key={s.label} href="#" aria-label={s.label}><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d={s.d}/></svg></a>)}
       </div>
     </div>
-    <div className="footer-links"><div><span>Explore</span><button onClick={() => navigate('join')}>Contribute</button><button onClick={() => navigate('join')}>Listen</button><button onClick={() => navigate('leaderboard')}>Leaderboard</button><button onClick={() => navigate('state')}>State vs State</button></div><div><span>Languages</span><button>Igbo</button><button>Yoruba</button><button>Hausa</button><button>Pidgin</button></div></div>
+    <div className="footer-links"><div><span>Explore</span><button onClick={() => navigate('join')}>Contribute</button><button onClick={() => navigate('listen')}>Listen</button><button onClick={() => navigate('leaderboard')}>Leaderboard</button><button onClick={() => navigate('state')}>State vs State</button></div><div><span>Languages</span><button>Igbo</button><button>Yoruba</button><button>Hausa</button><button>Pidgin</button></div></div>
   </div><div className="container footer-bottom"><span>© 2026 Nuji. Built for voices.</span><span>Open · Community-led · Nigerian</span></div></footer>;
 }
 
